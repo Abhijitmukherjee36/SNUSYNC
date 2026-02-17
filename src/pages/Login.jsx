@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FiUser, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import snuLogo from "../assets/snu-logo.png";
 import "./Auth.css";
@@ -8,11 +8,12 @@ const Login = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // TODO: Implement login logic
-    console.log("Login attempt:", { userId, password });
+    // Navigate to dashboard
+    navigate('/dashboard');
   };
 
   return (

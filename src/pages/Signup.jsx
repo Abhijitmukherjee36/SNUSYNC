@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiUser, FiLock, FiEye, FiEyeOff, FiMail, FiUserPlus } from 'react-icons/fi';
 import snuLogo from '../assets/snu-logo.png';
 import './Auth.css';
@@ -14,6 +14,7 @@ const Signup = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,8 +26,8 @@ const Signup = () => {
       alert('Passwords do not match!');
       return;
     }
-    // TODO: Implement signup logic
-    console.log('Signup attempt:', formData);
+    // Navigate to dashboard
+    navigate('/dashboard');
   };
 
   return (
