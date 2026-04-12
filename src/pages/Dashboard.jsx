@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { FiSearch } from 'react-icons/fi';
+import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import {
   FiGrid,
   FiUsers,
@@ -30,6 +30,78 @@ const TASKS = [
 
 const EVENTS = [
   { title: 'Basketball', date: '12 Nov 2025', desc: 'Come cheer on your favorite teams in a series of intense matchups. Food and drinks available!' },
+];
+
+/* ── Month names helper ── */
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* ── Parse a date string like "12 Apr 2026" into a Date ── */
+const parseNoticeDate = (str) => {
+  const parts = str.split(' ');
+  if (parts.length !== 3) return new Date(str);
+  const day = parseInt(parts[0], 10);
+  const monthIdx = MONTH_SHORT.indexOf(parts[1]);
+  const year = parseInt(parts[2], 10);
+  if (monthIdx === -1 || isNaN(day) || isNaN(year)) return new Date(str);
+  return new Date(year, monthIdx, day);
+};
+
+/* ── Build calendar grid for any month/year ── */
+const buildCalendar = (year, month) => {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const rows = [];
+  let d = 1;
+  for (let w = 0; w < 6; w++) {
+    const r = [];
+    for (let c = 0; c < 7; c++) {
+      if ((w === 0 && c < firstDay) || d > daysInMonth) r.push(null);
+      else r.push(d++);
+    }
+    if (r.some(Boolean)) rows.push(r);
+  }
+  return rows;
+};
+
+/* ── Default notices ── */
+const DEFAULT_NOTICES = [
+  {
+    id: 1,
+    title: 'Semester Exams',
+    date: '12 Apr 2026',
+    body: 'Semester examinations for all courses will commence from the 12th December 2026. Detailed schedules will be available soon. Early bird course registration for the Spring 2027 semester is now open for all continuing students. Prof. Anya Sharma from Tech University will deliver a guest lecture on "AI in Modern Education" on November 15th in Hall 3. All faculty members are requested to submit their mid-semester grade reports by November 20th through the faculty portal.',
+  },
+  {
+    id: 2,
+    title: 'Faculty Workshop',
+    date: '10 Apr 2026',
+    body: 'A hands-on faculty workshop on integrating technology in classrooms was held on 10th April. All department heads ensured participation from their teams. The workshop covered modern teaching methodologies, digital tools for assessment, and interactive learning platforms.',
+  },
+  {
+    id: 3,
+    title: 'Library Maintenance',
+    date: '5 Apr 2026',
+    body: 'The central library remained closed on 5th April for scheduled maintenance and system upgrades. Digital library services continued to be accessible online. Students were advised to plan their borrowings accordingly.',
+  },
+  {
+    id: 4,
+    title: 'Scholarship Applications Open',
+    date: '8 Apr 2026',
+    body: 'Applications for the Merit-Based Scholarship Program for the academic year 2026-27 are now open. Eligible students with a CGPA of 8.5 and above may apply through the student portal. The last date for submission is April 20th, 2026. Contact the scholarship office for more details.',
+  },
+  {
+    id: 5,
+    title: 'Campus Placement Drive',
+    date: '1 Apr 2026',
+    body: 'A campus placement drive by leading tech companies including TCS, Infosys, and Wipro was held on 1st April. Final year students from all departments participated. Over 120 students received offers across various roles in software engineering and data analytics.',
+  },
+  {
+    id: 6,
+    title: 'Annual Cultural Fest',
+    date: '28 Mar 2026',
+    body: 'The annual cultural fest "Utsav 2026" was a grand success. Over 500 students participated across 30 events including dance, drama, music, and art. The fest was inaugurated by renowned artist Subodh Gupta. Winners were felicitated by the Vice Chancellor during the closing ceremony.',
+  },
 ];
 
 /* ── Student data organized by department → semester → section ── */
@@ -122,28 +194,89 @@ export const DEPARTMENTS = Object.keys(ALL_STUDENTS);
 export const SEMESTERS = ['1st','2nd','3rd','4th','5th','6th','7th','8th'];
 export const SECTIONS = ['1','2','3'];
 
-/* November 2025 calendar */
-const buildCal = () => {
-  const first = new Date(2025, 10, 1).getDay();
-  const rows = [];
-  let d = 1;
-  for (let w = 0; w < 6; w++) {
-    const r = [];
-    for (let c = 0; c < 7; c++) {
-      if ((w === 0 && c < first) || d > 30) r.push(null);
-      else r.push(d++);
-    }
-    if (r.some(Boolean)) rows.push(r);
-  }
-  return rows;
-};
-const CAL = buildCal();
+/* Current date reference */
+const NOW = new Date();
 
 export default function Dashboard() {
   const location = useLocation();
   const incoming = location.state || {};
   const [tab, setTab] = useState(incoming.tab || 'dashboard');
   const navigate = useNavigate();
+
+  /* ── Calendar state ── */
+  const [calMonth, setCalMonth] = useState(NOW.getMonth());
+  const [calYear, setCalYear] = useState(NOW.getFullYear());
+  const [selectedDate, setSelectedDate] = useState(null); // null = no date filter
+
+  const calGrid = useMemo(() => buildCalendar(calYear, calMonth), [calYear, calMonth]);
+
+  const handlePrevMonth = () => {
+    setSelectedDate(null);
+    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
+    else setCalMonth(m => m - 1);
+  };
+  const handleNextMonth = () => {
+    setSelectedDate(null);
+    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
+    else setCalMonth(m => m + 1);
+  };
+
+  const handleCalDateClick = (day) => {
+    if (day == null) return;
+    const clicked = `${day} ${MONTH_SHORT[calMonth]} ${calYear}`;
+    // toggle: click same date again to clear filter
+    setSelectedDate(prev => prev === clicked ? null : clicked);
+  };
+
+  /* ── Notice state ── */
+  const [notices, setNotices] = useState(DEFAULT_NOTICES);
+  const [noticeSearch, setNoticeSearch] = useState('');
+  const [expandedNotice, setExpandedNotice] = useState(null);
+  const [showAddNotice, setShowAddNotice] = useState(false);
+  const [newNotice, setNewNotice] = useState({ title: '', body: '' });
+  const [showAllNotices, setShowAllNotices] = useState(false);
+
+  /* ── Filtered & sorted notices ── */
+  const filteredNotices = useMemo(() => {
+    // 1) Sort by date descending (newest first)
+    let list = [...notices].sort((a, b) => parseNoticeDate(b.date) - parseNoticeDate(a.date));
+
+    // 2) Filter by search keyword
+    if (noticeSearch.trim()) {
+      const q = noticeSearch.toLowerCase();
+      list = list.filter(
+        n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)
+      );
+    }
+
+    // 3) Filter by selected calendar date
+    if (selectedDate && tab === 'notice') {
+      list = list.filter(n => n.date === selectedDate);
+    }
+
+    return list;
+  }, [notices, noticeSearch, selectedDate, tab]);
+
+  const displayedNotices = showAllNotices ? filteredNotices : filteredNotices.slice(0, 2);
+  const hasMoreNotices = filteredNotices.length > 2;
+
+  /* ── Add notice handler ── */
+  const handleAddNotice = () => {
+    if (!newNotice.title.trim() || !newNotice.body.trim()) return;
+    const today = new Date();
+    const dateStr = `${today.getDate()} ${MONTH_SHORT[today.getMonth()]} ${today.getFullYear()}`;
+    setNotices(prev => [
+      { id: Date.now(), title: newNotice.title, date: dateStr, body: newNotice.body },
+      ...prev,
+    ]);
+    setNewNotice({ title: '', body: '' });
+    setShowAddNotice(false);
+  };
+
+  /* ── Delete notice handler ── */
+  const handleDeleteNotice = (id) => {
+    setNotices(prev => prev.filter(n => n.id !== id));
+  };
 
   /* ── Filter state ── */
   const [dept, setDept] = useState(incoming.dept || 'Computer Science');
@@ -319,6 +452,77 @@ export default function Dashboard() {
                   </div>
                 )}
               </>
+            ) : tab === 'notice' ? (
+              <>
+                <h2 className="n-title">Notice</h2>
+                <p className="n-subtitle">Keep Updated with the latest university announcements</p>
+
+                <div className="n-search-row">
+                  <div className="n-search-bar">
+                    <FiSearch className="n-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Search by Keyword"
+                      className="n-search-input"
+                      value={noticeSearch}
+                      onChange={e => setNoticeSearch(e.target.value)}
+                    />
+                  </div>
+                  {hasMoreNotices && (
+                    <span
+                      className="d-link n-view-all"
+                      onClick={() => setShowAllNotices(prev => !prev)}
+                    >
+                      {showAllNotices ? 'Show Less' : `View All (${filteredNotices.length})`}
+                    </span>
+                  )}
+                </div>
+
+                <div className="n-list">
+                  {displayedNotices.length > 0 ? (
+                    displayedNotices.map(n => {
+                      const isExpanded = expandedNotice === n.id;
+                      const preview = n.body.length > 200 ? n.body.slice(0, 200) : n.body;
+                      return (
+                        <div key={n.id} className="n-card">
+                          <div className="n-card-head">
+                            <h3 className="n-card-title">{n.title}</h3>
+                            <div className="n-card-actions">
+                              <span className="n-card-date">{n.date}</span>
+                              <button
+                                className="n-delete-btn"
+                                onClick={() => handleDeleteNotice(n.id)}
+                                title="Delete Notice"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="n-card-body">
+                            {isExpanded ? n.body : preview}
+                            {n.body.length > 200 && (
+                              <span
+                                className="n-read-more"
+                                onClick={() => setExpandedNotice(isExpanded ? null : n.id)}
+                              >
+                                {isExpanded ? '  Show Less' : '  ....Read More'}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="n-no-data">No notices found.</p>
+                  )}
+                </div>
+
+                {!showAllNotices && hasMoreNotices && (
+                  <p className="n-showing-count">
+                    Showing {displayedNotices.length} of {filteredNotices.length} notices
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <div className="d-schedule">
@@ -347,9 +551,16 @@ export default function Dashboard() {
           <div className="d-right">
             <div className="d-cal">
               <div className="d-cal-hd">
-                <span>November <small>▾</small></span>
-                <span>2025 <small>▾</small></span>
+                <button className="d-cal-arrow" onClick={handlePrevMonth}><FiChevronLeft /></button>
+                <span>{MONTH_NAMES[calMonth]} {calYear}</span>
+                <button className="d-cal-arrow" onClick={handleNextMonth}><FiChevronRight /></button>
               </div>
+              {selectedDate && tab === 'notice' && (
+                <div className="d-cal-filter-badge">
+                  Filtering: <strong>{selectedDate}</strong>
+                  <button onClick={() => setSelectedDate(null)} className="d-cal-clear"><FiX /></button>
+                </div>
+              )}
               <table className="d-cal-tbl">
                 <thead>
                   <tr>
@@ -359,15 +570,32 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {CAL.map((wk,wi) => (
-                    <tr key={wi}>
-                      {wk.map((day,di) => (
-                        <td key={di} className={day===5?'today':day==null?'empty':''}>
-                          {day}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
+                  {calGrid.map((wk,wi) => {
+                    return (
+                      <tr key={wi}>
+                        {wk.map((day,di) => {
+                          const isToday = day === NOW.getDate() && calMonth === NOW.getMonth() && calYear === NOW.getFullYear();
+                          const dateStr = day ? `${day} ${MONTH_SHORT[calMonth]} ${calYear}` : null;
+                          const isSelected = selectedDate && dateStr === selectedDate;
+                          const hasNotice = tab === 'notice' && day && notices.some(n => n.date === dateStr);
+                          let cls = '';
+                          if (day == null) cls = 'empty';
+                          else if (isSelected) cls = 'selected';
+                          else if (isToday) cls = 'today';
+                          return (
+                            <td
+                              key={di}
+                              className={cls + (hasNotice ? ' has-notice' : '')}
+                              onClick={() => tab === 'notice' && handleCalDateClick(day)}
+                              style={tab === 'notice' && day ? { cursor: 'pointer' } : {}}
+                            >
+                              {day}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -396,6 +624,17 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+            ) : tab === 'notice' ? (
+              <div className="n-quick-actions">
+                <h3 className="n-qa-title">Quick Actions</h3>
+                <button
+                  className="n-add-notice-btn"
+                  onClick={() => setShowAddNotice(true)}
+                >
+                  <FiPlusCircle className="n-add-icon" />
+                  Add Notice
+                </button>
+              </div>
             ) : (
               <div className="d-events">
                 <div className="d-sec-head">
@@ -417,6 +656,44 @@ export default function Dashboard() {
 
         </div>
       </div>
+
+      {/* ═══ ADD NOTICE MODAL ═══ */}
+      {showAddNotice && (
+        <div className="n-modal-overlay" onClick={() => setShowAddNotice(false)}>
+          <div className="n-modal" onClick={e => e.stopPropagation()}>
+            <div className="n-modal-header">
+              <h3>Add New Notice</h3>
+              <button className="n-modal-close" onClick={() => setShowAddNotice(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="n-modal-body">
+              <div className="n-form-field">
+                <label>Notice Title</label>
+                <input
+                  type="text"
+                  placeholder="Enter notice title"
+                  value={newNotice.title}
+                  onChange={e => setNewNotice(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div className="n-form-field">
+                <label>Notice Content</label>
+                <textarea
+                  placeholder="Enter notice content..."
+                  rows={5}
+                  value={newNotice.body}
+                  onChange={e => setNewNotice(prev => ({ ...prev, body: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="n-modal-footer">
+              <button className="n-modal-cancel" onClick={() => setShowAddNotice(false)}>Cancel</button>
+              <button className="n-modal-submit" onClick={handleAddNotice}>Publish Notice</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
