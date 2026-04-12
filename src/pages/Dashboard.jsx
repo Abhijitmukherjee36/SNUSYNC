@@ -43,6 +43,41 @@ const DEFAULT_ASSIGNMENTS = [
   { id: 5, title: 'Network Protocols Essay', subject: 'Computer Networks', section: '4th Sem, Sec 1', dueDate: '1 Apr 2026', submitted: 38, total: 65, attachment: null },
 ];
 
+/* ── Demo student names pool ── */
+const STUDENT_NAMES = [
+  'Aarav Sharma','Aditi Das','Aditya Patel','Ananya Gupta','Arjun Reddy',
+  'Bhavya Singh','Deepak Kumar','Diya Nair','Gaurav Joshi','Isha Mehta',
+  'Kabir Malhotra','Kavya Iyer','Manish Verma','Meera Choudhury','Neha Banerjee',
+  'Nikhil Saxena','Pooja Rao','Priya Agarwal','Rahul Mishra','Riya Sen',
+  'Rohan Kapoor','Sakshi Tiwari','Sameer Khan','Shreya Bose','Siddharth Nair',
+  'Sneha Patil','Tanvi Deshmukh','Varun Pillai','Vikram Chauhan','Zara Sheikh',
+  'Amit Dubey','Ankita Roy','Chirag Thakur','Devika Menon','Harsh Agarwal',
+  'Ishaan Bhat','Jaya Prasad','Karan Gill','Lakshmi Suresh','Mohit Pandey',
+  'Nandini Kulkarni','Om Prakash','Pallavi Sinha','Rajesh Nambiar','Sanya Khanna',
+  'Tarun Bisht','Uma Shankar','Vivek Rathore','Yashika Luthra','Aryan Chopra',
+  'Barkha Soni','Chetan Hegde','Divya Chandra','Esha Grover','Farhan Mirza',
+  'Gitanjali Dutta','Hemant Yadav','Indu Rajput','Jayant Sood','Komal Bhatt',
+  'Lalit Mohan','Mitali Shah','Naveen Jha','Ojas Kale','Pankaj Rawat',
+  'Renu Goswami','Suresh Babu','Tanya Oberoi','Uday Kiran','Vinita Mathur',
+  'Waseem Akram','Yogesh Shirke','Zubin Patel','Akshay Rangnekar','Bhakti Jain',
+  'Chandni Ahluwalia','Dhruv Rastogi','Ekta Bhandari','Firoz Alam','Gauri Shinde',
+];
+
+/* ── Generate consistent demo student list for an assignment ── */
+const generateStudents = (assignId, total, submitted) => {
+  const offset = (assignId * 7) % STUDENT_NAMES.length;
+  const students = [];
+  for (let i = 0; i < total; i++) {
+    const idx = (offset + i) % STUDENT_NAMES.length;
+    students.push({
+      name: STUDENT_NAMES[idx],
+      rollNo: `SNU${String(2024000 + assignId * 100 + i + 1).slice(-6)}`,
+      submitted: i < submitted,
+    });
+  }
+  return students;
+};
+
 /* ── Month names helper ── */
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -297,8 +332,11 @@ export default function Dashboard() {
   const [showUnsubmitted, setShowUnsubmitted] = useState(null);
   const [reminderSent, setReminderSent] = useState(null);
   const [newAssign, setNewAssign] = useState({ title: '', subject: SUBJECTS_LIST[0], section: '6th Sem, Sec 1', dueDate: '', total: '' });
-  const [assignFile, setAssignFile] = useState(null); // { name, type, url }
-  const [viewAttachment, setViewAttachment] = useState(null); // assignment object to preview
+  const [assignFile, setAssignFile] = useState(null);
+  const [viewAttachment, setViewAttachment] = useState(null);
+  const [viewStatus, setViewStatus] = useState(null);
+  const [statusTab, setStatusTab] = useState('submitted');
+  const [expandedUnsub, setExpandedUnsub] = useState(null); // which assignment group is expanded in unsubmitted modal
 
   /* ── Filtered assignments ── */
   const filteredAssignments = useMemo(() => {
@@ -655,7 +693,11 @@ export default function Dashboard() {
                             <td>{a.section}</td>
                             <td>{a.dueDate}</td>
                             <td>
-                              <span className={`a-status ${a.submitted >= a.total ? 'a-status-complete' : 'a-status-pending'}`}>
+                              <span
+                                className={`a-status a-status-click ${a.submitted >= a.total ? 'a-status-complete' : 'a-status-pending'}`}
+                                onClick={(e) => { e.stopPropagation(); setViewStatus(a); setStatusTab('submitted'); }}
+                                title="Click to view submission details"
+                              >
                                 {a.submitted}/{a.total}
                               </span>
                             </td>
@@ -792,7 +834,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   className="a-qa-btn a-qa-unsub"
-                  onClick={() => setShowUnsubmitted('all')}
+                  onClick={() => { setExpandedUnsub(null); setShowUnsubmitted('open'); }}
                 >
                   <FiAlertCircle className="a-qa-ico" />
                   View Unsubmitted Students
@@ -1017,35 +1059,136 @@ export default function Dashboard() {
       )}
 
       {/* ═══ VIEW UNSUBMITTED MODAL ═══ */}
-      {showUnsubmitted && (
-        <div className="n-modal-overlay" onClick={() => setShowUnsubmitted(null)}>
-          <div className="n-modal a-unsub-modal" onClick={e => e.stopPropagation()}>
-            <div className="n-modal-header">
-              <h3>Unsubmitted Students</h3>
-              <button className="n-modal-close" onClick={() => setShowUnsubmitted(null)}>
-                <FiX />
-              </button>
-            </div>
-            <div className="n-modal-body">
-              {assignments.filter(a => a.submitted < a.total).length > 0 ? (
-                <div className="a-unsub-list">
-                  {assignments.filter(a => a.submitted < a.total).map(a => (
-                    <div key={a.id} className="a-unsub-card">
-                      <div className="a-unsub-head">
-                        <h4>{a.title}</h4>
-                        <span className="a-unsub-count">{a.total - a.submitted} pending</span>
+      {showUnsubmitted && (() => {
+        const pendingAssignments = assignments.filter(a => a.submitted < a.total);
+        return (
+          <div className="n-modal-overlay" onClick={() => setShowUnsubmitted(null)}>
+            <div className="n-modal a-status-modal" onClick={e => e.stopPropagation()}>
+              <div className="n-modal-header">
+                <h3>Unsubmitted Students</h3>
+                <button className="n-modal-close" onClick={() => setShowUnsubmitted(null)}>
+                  <FiX />
+                </button>
+              </div>
+
+              {pendingAssignments.length > 0 ? (
+                <div className="a-unsub-detail-list">
+                  {pendingAssignments.map(a => {
+                    const studs = generateStudents(a.id, a.total, a.submitted);
+                    const pending = studs.filter(s => !s.submitted);
+                    const isOpen = expandedUnsub === a.id;
+                    return (
+                      <div key={a.id} className="a-unsub-group">
+                        <div
+                          className="a-unsub-group-hd"
+                          onClick={() => setExpandedUnsub(prev => prev === a.id ? null : a.id)}
+                        >
+                          <div>
+                            <h4>{a.title}</h4>
+                            <span className="a-unsub-meta">{a.subject} · {a.section}</span>
+                          </div>
+                          <span className="a-unsub-count">{pending.length} pending</span>
+                        </div>
+                        {isOpen && (
+                          <div className="a-unsub-students">
+                            {pending.map((s, i) => (
+                              <div key={i} className="a-st-student a-st-not">
+                                <div className="a-st-avatar">
+                                  {s.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                                </div>
+                                <div className="a-st-info">
+                                  <span className="a-st-name">{s.name}</span>
+                                  <span className="a-st-roll">{s.rollNo}</span>
+                                </div>
+                                <span className="a-st-badge a-st-badge-no">✗ Pending</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <p className="a-unsub-meta">{a.subject} · {a.section} · Due: {a.dueDate}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="n-no-data">All students have submitted their assignments!</p>
+                <div className="n-modal-body">
+                  <p className="n-no-data">All students have submitted their assignments!</p>
+                </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* ═══ SUBMISSION STATUS MODAL ═══ */}
+      {viewStatus && (() => {
+        const studs = generateStudents(viewStatus.id, viewStatus.total, viewStatus.submitted);
+        const submittedList = studs.filter(s => s.submitted);
+        const pendingList = studs.filter(s => !s.submitted);
+        const activeList = statusTab === 'submitted' ? submittedList : pendingList;
+        return (
+          <div className="n-modal-overlay" onClick={() => setViewStatus(null)}>
+            <div className="n-modal a-status-modal" onClick={e => e.stopPropagation()}>
+              <div className="n-modal-header">
+                <h3>{viewStatus.title}</h3>
+                <button className="n-modal-close" onClick={() => setViewStatus(null)}>
+                  <FiX />
+                </button>
+              </div>
+
+              {/* Progress bar */}
+              <div className="a-st-progress-wrap">
+                <div className="a-st-progress-bar">
+                  <div
+                    className="a-st-progress-fill"
+                    style={{ width: `${(viewStatus.submitted / viewStatus.total) * 100}%` }}
+                  />
+                </div>
+                <span className="a-st-progress-text">
+                  {viewStatus.submitted} of {viewStatus.total} submitted ({Math.round((viewStatus.submitted / viewStatus.total) * 100)}%)
+                </span>
+              </div>
+
+              {/* Tabs */}
+              <div className="a-st-tabs">
+                <button
+                  className={`a-st-tab ${statusTab === 'submitted' ? 'a-st-tab-active-green' : ''}`}
+                  onClick={() => setStatusTab('submitted')}
+                >
+                  ✓ Submitted ({submittedList.length})
+                </button>
+                <button
+                  className={`a-st-tab ${statusTab === 'pending' ? 'a-st-tab-active-red' : ''}`}
+                  onClick={() => setStatusTab('pending')}
+                >
+                  ✗ Pending ({pendingList.length})
+                </button>
+              </div>
+
+              {/* Student list */}
+              <div className="a-st-list">
+                {activeList.map((s, i) => (
+                  <div key={i} className={`a-st-student ${s.submitted ? 'a-st-done' : 'a-st-not'}`}>
+                    <div className="a-st-avatar">
+                      {s.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="a-st-info">
+                      <span className="a-st-name">{s.name}</span>
+                      <span className="a-st-roll">{s.rollNo}</span>
+                    </div>
+                    <span className={`a-st-badge ${s.submitted ? 'a-st-badge-yes' : 'a-st-badge-no'}`}>
+                      {s.submitted ? '✓ Submitted' : '✗ Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="a-st-footer">
+                <span className="a-preview-meta">{viewStatus.subject} · {viewStatus.section} · Due: {viewStatus.dueDate}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
