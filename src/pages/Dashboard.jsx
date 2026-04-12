@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload } from 'react-icons/fi';
 import {
   FiGrid,
   FiUsers,
@@ -30,6 +30,17 @@ const TASKS = [
 
 const EVENTS = [
   { title: 'Basketball', date: '12 Nov 2025', desc: 'Come cheer on your favorite teams in a series of intense matchups. Food and drinks available!' },
+];
+
+/* ── Assignment data ── */
+const SUBJECTS_LIST = ['Algorithms', 'DBMS', 'Data Structures', 'Operating Systems', 'Computer Networks', 'Software Engineering'];
+
+const DEFAULT_ASSIGNMENTS = [
+  { id: 1, title: 'Algorithm - Assignment 1', subject: 'Algorithms', section: '6th Sem, Sec 1', dueDate: '10 Apr 2026', submitted: 45, total: 60, attachment: null },
+  { id: 2, title: 'DBMS Report', subject: 'DBMS', section: '4th Sem, Sec 2', dueDate: '8 Apr 2026', submitted: 59, total: 70, attachment: null },
+  { id: 3, title: 'Database Project', subject: 'DBMS', section: '2nd Sem, Sec 3', dueDate: '5 Apr 2026', submitted: 62, total: 80, attachment: null },
+  { id: 4, title: 'OS Lab Report', subject: 'Operating Systems', section: '6th Sem, Sec 1', dueDate: '3 Apr 2026', submitted: 50, total: 55, attachment: null },
+  { id: 5, title: 'Network Protocols Essay', subject: 'Computer Networks', section: '4th Sem, Sec 1', dueDate: '1 Apr 2026', submitted: 38, total: 65, attachment: null },
 ];
 
 /* ── Month names helper ── */
@@ -278,6 +289,73 @@ export default function Dashboard() {
     setNotices(prev => prev.filter(n => n.id !== id));
   };
 
+  /* ── Assignment state ── */
+  const [assignments, setAssignments] = useState(DEFAULT_ASSIGNMENTS);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [showAllAssign, setShowAllAssign] = useState(false);
+  const [showAddAssign, setShowAddAssign] = useState(false);
+  const [showUnsubmitted, setShowUnsubmitted] = useState(null);
+  const [reminderSent, setReminderSent] = useState(null);
+  const [newAssign, setNewAssign] = useState({ title: '', subject: SUBJECTS_LIST[0], section: '6th Sem, Sec 1', dueDate: '', total: '' });
+  const [assignFile, setAssignFile] = useState(null); // { name, type, url }
+  const [viewAttachment, setViewAttachment] = useState(null); // assignment object to preview
+
+  /* ── Filtered assignments ── */
+  const filteredAssignments = useMemo(() => {
+    if (!assignSearch.trim()) return assignments;
+    const q = assignSearch.toLowerCase();
+    return assignments.filter(
+      a => a.title.toLowerCase().includes(q) || a.subject.toLowerCase().includes(q) || a.section.toLowerCase().includes(q)
+    );
+  }, [assignments, assignSearch]);
+
+  const displayedAssignments = showAllAssign ? filteredAssignments : filteredAssignments.slice(0, 3);
+  const hasMoreAssign = filteredAssignments.length > 3;
+
+  /* ── Add assignment handler ── */
+  const handleAddAssignment = () => {
+    if (!newAssign.title.trim() || !newAssign.dueDate.trim() || !newAssign.total) return;
+    setAssignments(prev => [
+      {
+        id: Date.now(),
+        title: newAssign.title,
+        subject: newAssign.subject,
+        section: newAssign.section,
+        dueDate: newAssign.dueDate,
+        submitted: 0,
+        total: parseInt(newAssign.total, 10) || 0,
+        attachment: assignFile,
+      },
+      ...prev,
+    ]);
+    setNewAssign({ title: '', subject: SUBJECTS_LIST[0], section: '6th Sem, Sec 1', dueDate: '', total: '' });
+    setAssignFile(null);
+    setShowAddAssign(false);
+  };
+
+  /* ── File upload handler ── */
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setAssignFile({ name: file.name, type: file.type, url });
+  };
+
+  /* ── Handle row click to view attachment ── */
+  const handleAssignmentClick = (a) => {
+    if (a.attachment) {
+      setViewAttachment(a);
+    }
+  };
+
+  /* ── Send reminder handler ── */
+  const handleSendReminder = () => {
+    const pending = assignments.filter(a => a.submitted < a.total);
+    if (pending.length === 0) return;
+    setReminderSent(true);
+    setTimeout(() => setReminderSent(null), 2500);
+  };
+
   /* ── Filter state ── */
   const [dept, setDept] = useState(incoming.dept || 'Computer Science');
   const [sem, setSem] = useState(incoming.sem || '7th');
@@ -523,6 +601,73 @@ export default function Dashboard() {
                   </p>
                 )}
               </>
+            ) : tab === 'assignments' ? (
+              <>
+                <h2 className="n-title">Assignments</h2>
+                <p className="n-subtitle">Manage and track all student assignments</p>
+
+                <div className="n-search-row">
+                  <div className="n-search-bar">
+                    <FiSearch className="n-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Search by subject, title, or student"
+                      className="n-search-input"
+                      value={assignSearch}
+                      onChange={e => setAssignSearch(e.target.value)}
+                    />
+                  </div>
+                  {hasMoreAssign && (
+                    <span
+                      className="d-link n-view-all"
+                      onClick={() => setShowAllAssign(prev => !prev)}
+                    >
+                      {showAllAssign ? 'Show Less' : `View All`}
+                    </span>
+                  )}
+                </div>
+
+                <div className="a-table-wrap">
+                  <table className="a-table">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Subject</th>
+                        <th>Section</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedAssignments.length > 0 ? (
+                        displayedAssignments.map(a => (
+                          <tr
+                            key={a.id}
+                            className={a.attachment ? 'a-row-clickable' : ''}
+                            onClick={() => handleAssignmentClick(a)}
+                            title={a.attachment ? 'Click to view attachment' : ''}
+                          >
+                            <td className="a-cell-title">
+                              {a.attachment && <FiPaperclip className="a-clip-icon" />}
+                              {a.title}
+                            </td>
+                            <td>{a.subject}</td>
+                            <td>{a.section}</td>
+                            <td>{a.dueDate}</td>
+                            <td>
+                              <span className={`a-status ${a.submitted >= a.total ? 'a-status-complete' : 'a-status-pending'}`}>
+                                {a.submitted}/{a.total}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr><td colSpan={5} className="a-no-data">No assignments found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : (
               <>
                 <div className="d-schedule">
@@ -635,6 +780,36 @@ export default function Dashboard() {
                   Add Notice
                 </button>
               </div>
+            ) : tab === 'assignments' ? (
+              <div className="n-quick-actions">
+                <h3 className="n-qa-title">Quick Actions</h3>
+                <button
+                  className="a-qa-btn a-qa-add"
+                  onClick={() => setShowAddAssign(true)}
+                >
+                  <FiPlusCircle className="a-qa-ico" />
+                  Add Assignment
+                </button>
+                <button
+                  className="a-qa-btn a-qa-unsub"
+                  onClick={() => setShowUnsubmitted('all')}
+                >
+                  <FiAlertCircle className="a-qa-ico" />
+                  View Unsubmitted Students
+                </button>
+                <button
+                  className="a-qa-btn a-qa-remind"
+                  onClick={handleSendReminder}
+                >
+                  <FiSend className="a-qa-ico" />
+                  Send Reminder
+                </button>
+                {reminderSent && (
+                  <div className="a-reminder-toast">
+                    ✓ Reminder sent to all students with pending assignments
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="d-events">
                 <div className="d-sec-head">
@@ -690,6 +865,183 @@ export default function Dashboard() {
             <div className="n-modal-footer">
               <button className="n-modal-cancel" onClick={() => setShowAddNotice(false)}>Cancel</button>
               <button className="n-modal-submit" onClick={handleAddNotice}>Publish Notice</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ═══ ADD ASSIGNMENT MODAL ═══ */}
+      {showAddAssign && (
+        <div className="n-modal-overlay" onClick={() => setShowAddAssign(false)}>
+          <div className="n-modal" onClick={e => e.stopPropagation()}>
+            <div className="n-modal-header">
+              <h3>Add New Assignment</h3>
+              <button className="n-modal-close" onClick={() => setShowAddAssign(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="n-modal-body">
+              <div className="n-form-field">
+                <label>Assignment Title</label>
+                <input
+                  type="text"
+                  placeholder="Enter assignment title"
+                  value={newAssign.title}
+                  onChange={e => setNewAssign(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div className="n-form-field">
+                <label>Subject</label>
+                <select
+                  value={newAssign.subject}
+                  onChange={e => setNewAssign(prev => ({ ...prev, subject: e.target.value }))}
+                >
+                  {SUBJECTS_LIST.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="n-form-field">
+                <label>Section</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 6th Sem, Sec 1"
+                  value={newAssign.section}
+                  onChange={e => setNewAssign(prev => ({ ...prev, section: e.target.value }))}
+                />
+              </div>
+              <div className="n-form-field">
+                <label>Due Date</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 20 Apr 2026"
+                  value={newAssign.dueDate}
+                  onChange={e => setNewAssign(prev => ({ ...prev, dueDate: e.target.value }))}
+                />
+              </div>
+              <div className="n-form-field">
+                <label>Total Students</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 60"
+                  value={newAssign.total}
+                  onChange={e => setNewAssign(prev => ({ ...prev, total: e.target.value }))}
+                />
+              </div>
+              <div className="n-form-field">
+                <label>Attachment (Image or PDF)</label>
+                <div className="a-upload-area">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    id="assign-file-input"
+                    className="a-file-input"
+                    onChange={handleFileUpload}
+                  />
+                  <label htmlFor="assign-file-input" className="a-upload-label">
+                    <FiUpload className="a-upload-ico" />
+                    <span>{assignFile ? assignFile.name : 'Choose file or drag here'}</span>
+                  </label>
+                  {assignFile && (
+                    <div className="a-file-preview">
+                      {assignFile.type.startsWith('image/') ? (
+                        <img src={assignFile.url} alt="Preview" className="a-file-thumb" />
+                      ) : (
+                        <div className="a-file-pdf">
+                          <FiPaperclip />
+                          <span>{assignFile.name}</span>
+                        </div>
+                      )}
+                      <button className="a-file-remove" onClick={() => setAssignFile(null)}>
+                        <FiX />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="n-modal-footer">
+              <button className="n-modal-cancel" onClick={() => { setShowAddAssign(false); setAssignFile(null); }}>Cancel</button>
+              <button className="n-modal-submit" onClick={handleAddAssignment}>Create Assignment</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ATTACHMENT PREVIEW MODAL ═══ */}
+      {viewAttachment && (
+        <div className="n-modal-overlay" onClick={() => setViewAttachment(null)}>
+          <div className="n-modal a-preview-modal" onClick={e => e.stopPropagation()}>
+            <div className="n-modal-header">
+              <h3>{viewAttachment.title}</h3>
+              <button className="n-modal-close" onClick={() => setViewAttachment(null)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="a-preview-body">
+              {viewAttachment.attachment.type.startsWith('image/') ? (
+                <img
+                  src={viewAttachment.attachment.url}
+                  alt={viewAttachment.attachment.name}
+                  className="a-preview-img"
+                />
+              ) : (
+                <div className="a-preview-pdf">
+                  <div className="a-preview-pdf-icon">
+                    <FiPaperclip />
+                  </div>
+                  <h4>{viewAttachment.attachment.name}</h4>
+                  <p>PDF attachment</p>
+                  <a
+                    href={viewAttachment.attachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="a-preview-open-btn"
+                  >
+                    <FiDownload /> Open PDF
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="a-preview-footer">
+              <span className="a-preview-meta">
+                {viewAttachment.subject} · {viewAttachment.section} · Due: {viewAttachment.dueDate}
+              </span>
+              <a
+                href={viewAttachment.attachment.url}
+                download={viewAttachment.attachment.name}
+                className="n-modal-submit a-download-btn"
+              >
+                <FiDownload /> Download
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ VIEW UNSUBMITTED MODAL ═══ */}
+      {showUnsubmitted && (
+        <div className="n-modal-overlay" onClick={() => setShowUnsubmitted(null)}>
+          <div className="n-modal a-unsub-modal" onClick={e => e.stopPropagation()}>
+            <div className="n-modal-header">
+              <h3>Unsubmitted Students</h3>
+              <button className="n-modal-close" onClick={() => setShowUnsubmitted(null)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="n-modal-body">
+              {assignments.filter(a => a.submitted < a.total).length > 0 ? (
+                <div className="a-unsub-list">
+                  {assignments.filter(a => a.submitted < a.total).map(a => (
+                    <div key={a.id} className="a-unsub-card">
+                      <div className="a-unsub-head">
+                        <h4>{a.title}</h4>
+                        <span className="a-unsub-count">{a.total - a.submitted} pending</span>
+                      </div>
+                      <p className="a-unsub-meta">{a.subject} · {a.section} · Due: {a.dueDate}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="n-no-data">All students have submitted their assignments!</p>
+              )}
             </div>
           </div>
         </div>
