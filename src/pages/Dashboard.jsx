@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload } from 'react-icons/fi';
 import {
   FiGrid,
@@ -76,6 +76,90 @@ const generateStudents = (assignId, total, submitted) => {
     });
   }
   return students;
+};
+
+/* ── Attendance data ── */
+const OVERVIEW_DATA_FILTERS = {
+  Weekly: { totalWorking: 5, present: 4, absent: 1, onLeave: 0, lastUpdated: '4th Nov 2025' },
+  Monthly: { totalWorking: 22, present: 19, absent: 2, onLeave: 1, lastUpdated: '4th Nov 2025' },
+  Yearly: { totalWorking: 220, present: 205, absent: 5, onLeave: 10, lastUpdated: '4th Nov 2025' }
+};
+
+const LEAVE_BREAKDOWN = {
+  casual: { used: 5, total: 7 },
+  sick:   { used: 3, total: 5 },
+  earned: { used: 2, total: 6 },
+};
+
+const MONTHLY_PRESENCE = [
+  { month: "Jul '25", present: 18, leaves: 2, pct: 90 },
+  { month: "Aug '25", present: 20, leaves: 1, pct: 95 },
+  { month: "Sep '25", present: 19, leaves: 3, pct: 86 },
+  { month: "Oct '25", present: 21, leaves: 1, pct: 95 },
+  { month: "Nov '25", present: 17, leaves: 2, pct: 89 },
+  { month: "Dec '25", present: 15, leaves: 3, pct: 83 },
+  { month: "Jan '25", present: 20, leaves: 1, pct: 95 },
+  { month: "Feb '25", present: 18, leaves: 2, pct: 90 },
+  { month: "Mar '25", present: 22, leaves: 0, pct: 100 },
+  { month: "Apr '25", present: 19, leaves: 1, pct: 95 },
+  { month: 'to date',  present: 16, leaves: 1, pct: 94 },
+];
+
+/* ── Dynamic Date Helpers ── */
+const getPastDateStr = (daysAgo) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  let dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  if (dateStr.match(/^\d /)) dateStr = dateStr.replace(/^(\d) /, '$1th ');
+  else if (dateStr.match(/^\d\d /)) dateStr = dateStr.replace(/^(\d\d) /, '$1th ');
+  dateStr = dateStr.replace(/1th/, '1st').replace(/2th/, '2nd').replace(/3th/, '3rd').replace(/11st/, '11th').replace(/12nd/, '12th').replace(/13rd/, '13th');
+  return dateStr;
+};
+
+const D0 = getPastDateStr(0);
+const D1 = getPastDateStr(1);
+const D5 = getPastDateStr(5);
+const D6 = getPastDateStr(6);
+const D7 = getPastDateStr(7);
+const D8 = getPastDateStr(8);
+const D11 = getPastDateStr(11);
+const D12 = getPastDateStr(12);
+
+const DAILY_ATTENDANCE = [
+  { id: 1, date: D0,  status: 'Present', timeIn: '9:02 AM', timeOut: '5:15 PM', leaveReason: '-', starred: true },
+  { id: 2, date: D1,  status: 'Present', timeIn: '8:58 AM', timeOut: '5:20 PM', leaveReason: '-', starred: true },
+  { id: 3, date: D5, status: 'On Leave - Sick', timeIn: '-', timeOut: '-', leaveReason: 'High Fever', starred: true },
+  { id: 4, date: D6, status: 'Present', timeIn: '9:10 AM', timeOut: '5:05 PM', leaveReason: '-', starred: false },
+  { id: 5, date: D7, status: 'Present', timeIn: '8:55 AM', timeOut: '5:30 PM', leaveReason: '-', starred: false },
+  { id: 6, date: D8, status: 'Absent', timeIn: '-', timeOut: '-', leaveReason: '-', starred: false },
+  { id: 7, date: D11, status: 'Present', timeIn: '9:00 AM', timeOut: '5:10 PM', leaveReason: '-', starred: false },
+  { id: 8, date: D12, status: 'On Leave - Casual', timeIn: '-', timeOut: '-', leaveReason: 'Personal Work', starred: false },
+];
+
+const BIOMETRIC_LOGS = {
+  [D0]: [
+    { id: 101, gate: 'Main Entrance', time: '9:02 AM', type: 'In' },
+    { id: 102, gate: 'Cafeteria', time: '1:15 PM', type: 'Out' },
+    { id: 103, gate: 'Cafeteria', time: '2:10 PM', type: 'In' },
+    { id: 104, gate: 'Main Entrance', time: '5:15 PM', type: 'Out' }
+  ],
+  [D1]: [
+    { id: 105, gate: 'Main Entrance', time: '8:58 AM', type: 'In' },
+    { id: 106, gate: 'Lab Building', time: '11:00 AM', type: 'In' },
+    { id: 107, gate: 'Main Entrance', time: '5:20 PM', type: 'Out' }
+  ],
+  [D6]: [
+    { id: 108, gate: 'Main Entrance', time: '9:10 AM', type: 'In' },
+    { id: 109, gate: 'Main Entrance', time: '5:05 PM', type: 'Out' }
+  ],
+  [D7]: [
+    { id: 110, gate: 'Main Entrance', time: '8:55 AM', type: 'In' },
+    { id: 111, gate: 'Main Entrance', time: '5:30 PM', type: 'Out' }
+  ],
+  [D11]: [
+    { id: 112, gate: 'Main Entrance', time: '9:00 AM', type: 'In' },
+    { id: 113, gate: 'Main Entrance', time: '5:10 PM', type: 'Out' }
+  ]
 };
 
 /* ── Month names helper ── */
@@ -336,7 +420,79 @@ export default function Dashboard() {
   const [viewAttachment, setViewAttachment] = useState(null);
   const [viewStatus, setViewStatus] = useState(null);
   const [statusTab, setStatusTab] = useState('submitted');
-  const [expandedUnsub, setExpandedUnsub] = useState(null); // which assignment group is expanded in unsubmitted modal
+  const [expandedUnsub, setExpandedUnsub] = useState(null);
+
+  /* ── Attendance state ── */
+  const [overviewFilter, setOverviewFilter] = useState('Yearly');
+  const [attOverview, setAttOverview] = useState(OVERVIEW_DATA_FILTERS['Yearly']);
+
+  const handleOverviewFilterChange = (filter) => {
+    setOverviewFilter(filter);
+    setAttOverview(OVERVIEW_DATA_FILTERS[filter]);
+  };
+  const [leaveBreakdown, setLeaveBreakdown] = useState(LEAVE_BREAKDOWN);
+  const [dailyAttendance, setDailyAttendance] = useState(DAILY_ATTENDANCE);
+  const [attFilter, setAttFilter] = useState('All');
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [newLeave, setNewLeave] = useState({ type: 'Casual', from: '', to: '', reason: '' });
+  const [hoveredBar, setHoveredBar] = useState(null);
+  const [selectedBioDate, setSelectedBioDate] = useState(D0);
+
+  const filteredAttendance = useMemo(() => {
+    if (attFilter === 'All') return dailyAttendance;
+    return dailyAttendance.filter(a => a.status.toLowerCase().includes(attFilter.toLowerCase()));
+  }, [attFilter, dailyAttendance]);
+
+  const overviewPct = ((attOverview.present / attOverview.totalWorking) * 100).toFixed(1);
+  const remainLeaves = leaveBreakdown.casual.total + leaveBreakdown.sick.total + leaveBreakdown.earned.total
+    - leaveBreakdown.casual.used - leaveBreakdown.sick.used - leaveBreakdown.earned.used;
+
+  const handleApplyLeave = () => {
+    if (!newLeave.from || !newLeave.reason) return;
+    
+    // Update Overview Stats
+    setAttOverview(prev => ({
+      ...prev,
+      present: Math.max(0, prev.present - 1),
+      onLeave: prev.onLeave + 1,
+    }));
+
+    // Update Leave Breakdown
+    const lType = newLeave.type.toLowerCase();
+    setLeaveBreakdown(prev => ({
+      ...prev,
+      [lType]: { ...prev[lType], used: prev[lType].used + 1 }
+    }));
+
+    // Add to daily log
+    const d = new Date(newLeave.from);
+    let dateStr = newLeave.from;
+    if (!isNaN(d)) {
+      dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      if (dateStr.match(/^\d /)) dateStr = dateStr.replace(/^(\d) /, '$1th ');
+      else if (dateStr.match(/^\d\d /)) dateStr = dateStr.replace(/^(\d\d) /, '$1th ');
+    }
+
+    setDailyAttendance(prev => [
+      {
+        id: Date.now(),
+        date: dateStr,
+        status: `On Leave - ${newLeave.type}`,
+        timeIn: '-',
+        timeOut: '-',
+        leaveReason: newLeave.reason,
+        starred: false,
+      },
+      ...prev
+    ]);
+
+    setNewLeave({ type: 'Casual', from: '', to: '', reason: '' });
+    setShowLeaveModal(false);
+  };
+
+  const handleToggleStar = (id) => {
+    setDailyAttendance(prev => prev.map(a => a.id === id ? { ...a, starred: !a.starred } : a));
+  };
 
   /* ── Filtered assignments ── */
   const filteredAssignments = useMemo(() => {
@@ -442,6 +598,58 @@ export default function Dashboard() {
       state: { dept, sem, sec, students, attendance },
     });
   };
+  const renderCalendar = () => (
+    <div className="d-cal">
+      <div className="d-cal-hd">
+        <button className="d-cal-arrow" onClick={handlePrevMonth}><FiChevronLeft /></button>
+        <span>{MONTH_NAMES[calMonth]} {calYear}</span>
+        <button className="d-cal-arrow" onClick={handleNextMonth}><FiChevronRight /></button>
+      </div>
+      {selectedDate && tab === 'notice' && (
+        <div className="d-cal-filter-badge">
+          Filtering: <strong>{selectedDate}</strong>
+          <button onClick={() => setSelectedDate(null)} className="d-cal-clear"><FiX /></button>
+        </div>
+      )}
+      <table className="d-cal-tbl">
+        <thead>
+          <tr>
+            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>(
+              <th key={d}>{d}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {calGrid.map((wk,wi) => {
+            return (
+              <tr key={wi}>
+                {wk.map((day,di) => {
+                  const isToday = day === NOW.getDate() && calMonth === NOW.getMonth() && calYear === NOW.getFullYear();
+                  const dateStr = day ? `${day} ${MONTH_SHORT[calMonth]} ${calYear}` : null;
+                  const isSelected = selectedDate && dateStr === selectedDate;
+                  const hasNotice = tab === 'notice' && day && notices.some(n => n.date === dateStr);
+                  let cls = '';
+                  if (day == null) cls = 'empty';
+                  else if (isSelected) cls = 'selected';
+                  else if (isToday) cls = 'today';
+                  return (
+                    <td
+                      key={di}
+                      className={cls + (hasNotice ? ' has-notice' : '')}
+                      onClick={() => tab === 'notice' && handleCalDateClick(day)}
+                      style={tab === 'notice' && day ? { cursor: 'pointer' } : {}}
+                    >
+                      {day}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div className="d-page">
@@ -485,7 +693,7 @@ export default function Dashboard() {
           </nav>
 
           {/* ── Centre ── */}
-          <div className="d-centre">
+          <div className={`d-centre ${tab === 'attendance' ? 'd-centre-full' : ''}`}>
             {tab === 'students' ? (
               <>
                 <h2 className="s-title">Subject Wise Attendance</h2>
@@ -710,6 +918,209 @@ export default function Dashboard() {
                   </table>
                 </div>
               </>
+            ) : tab === 'attendance' ? (
+              <>
+                {/* ── ATTENDANCE GRID ── */}
+                <div className="att-grid">
+                  {/* Attendance Overview */}
+                  <div className="att-overview-card">
+                    <h3 className="att-card-title">Attendance Overview - Academic Year 2025-26</h3>
+                    <div className="att-overview-body">
+                      {/* Donut chart */}
+                      <div className="att-donut-wrap">
+                        <svg viewBox="0 0 120 120" className="att-donut">
+                          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(0,0,0,.06)" strokeWidth="14" />
+                          <circle
+                            cx="60" cy="60" r="52" fill="none"
+                            stroke="#43a047" strokeWidth="14"
+                            strokeDasharray={`${(attOverview.present / attOverview.totalWorking) * 326.73} 326.73`}
+                            strokeDashoffset="0"
+                            transform="rotate(-90 60 60)"
+                            strokeLinecap="round"
+                          />
+                          <circle
+                            cx="60" cy="60" r="52" fill="none"
+                            stroke="#ffa726" strokeWidth="14"
+                            strokeDasharray={`${(attOverview.onLeave / attOverview.totalWorking) * 326.73} 326.73`}
+                            strokeDashoffset={`${-(attOverview.present / attOverview.totalWorking) * 326.73}`}
+                            transform="rotate(-90 60 60)"
+                          />
+                          <circle
+                            cx="60" cy="60" r="52" fill="none"
+                            stroke="#ef5350" strokeWidth="14"
+                            strokeDasharray={`${(attOverview.absent / attOverview.totalWorking) * 326.73} 326.73`}
+                            strokeDashoffset={`${-((attOverview.present + attOverview.onLeave) / attOverview.totalWorking) * 326.73}`}
+                            transform="rotate(-90 60 60)"
+                          />
+                        </svg>
+                        <div className="att-donut-center">
+                          <span className="att-donut-label">Overall<br/>Presence:</span>
+                          <span className="att-donut-pct">{overviewPct}%</span>
+                        </div>
+                      </div>
+                      {/* Stats */}
+                      <div className="att-overview-stats">
+                        <div className="att-stat"><span className="att-dot att-dot-total"></span> Total Working Days <strong>{attOverview.totalWorking}</strong></div>
+                        <div className="att-stat"><span className="att-dot att-dot-present"></span> Present Days <strong>{attOverview.present}</strong></div>
+                        <div className="att-stat"><span className="att-dot att-dot-absent"></span> Absent Days <strong>{attOverview.absent}</strong></div>
+                        <div className="att-stat"><span className="att-dot att-dot-leave"></span> On Leave <strong>{attOverview.onLeave}</strong></div>
+                      </div>
+                    </div>
+                    <div className="att-overview-bot">
+                      <div className="att-minifilter-grp">
+                        {['Weekly', 'Monthly', 'Yearly'].map(f => (
+                          <button 
+                            key={f} 
+                            onClick={() => handleOverviewFilterChange(f)}
+                            className={`att-minifilter-btn ${overviewFilter === f ? 'active' : ''}`}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Leave Breakdown */}
+                  <div className="att-leave-card">
+                    <h3 className="att-card-title">Leave Breakdown</h3>
+                    {/* Stacked bar */}
+                    <div className="att-leave-bar-wrap">
+                      <span className="att-leave-total">{leaveBreakdown.casual.total + leaveBreakdown.sick.total + leaveBreakdown.earned.total} days</span>
+                      <div className="att-leave-bar">
+                        <div className="att-bar-seg att-bar-casual" style={{flex: leaveBreakdown.casual.total}}>{leaveBreakdown.casual.used}/{leaveBreakdown.casual.total}</div>
+                        <div className="att-bar-seg att-bar-sick" style={{flex: leaveBreakdown.sick.total}}>{leaveBreakdown.sick.used}/{leaveBreakdown.sick.total}</div>
+                        <div className="att-bar-seg att-bar-earned" style={{flex: leaveBreakdown.earned.total}}>{leaveBreakdown.earned.used}/{leaveBreakdown.earned.total}</div>
+                        <div className="att-bar-seg att-bar-remain" style={{flex: remainLeaves}}>{remainLeaves}</div>
+                      </div>
+                      <div className="att-leave-legend">
+                        <span><span className="att-dot att-dot-casual"></span> Casual</span>
+                        <span><span className="att-dot att-dot-sick"></span> Sick</span>
+                        <span><span className="att-dot att-dot-earned"></span> Earned</span>
+                        <span><span className="att-dot att-dot-remain"></span> Remaining Leaves</span>
+                      </div>
+                    </div>
+                    {/* Leave detail rows */}
+                    <div className="att-leave-rows">
+                      <div className="att-leave-row">
+                        <span>Casual Leave</span>
+                        <div className="att-leave-mini-bar"><div className="att-mini-fill att-fill-casual" style={{width:`${(leaveBreakdown.casual.used/leaveBreakdown.casual.total)*100}%`}}></div></div>
+                        <strong>{leaveBreakdown.casual.used}/{leaveBreakdown.casual.total}</strong>
+                      </div>
+                      <div className="att-leave-row">
+                        <span>Sick Leave</span>
+                        <div className="att-leave-mini-bar"><div className="att-mini-fill att-fill-sick" style={{width:`${(leaveBreakdown.sick.used/leaveBreakdown.sick.total)*100}%`}}></div></div>
+                        <strong>{leaveBreakdown.sick.used}/{leaveBreakdown.sick.total}</strong>
+                      </div>
+                      <div className="att-leave-row">
+                        <span>Earned Leave</span>
+                        <div className="att-leave-mini-bar"><div className="att-mini-fill att-fill-earned" style={{width:`${(leaveBreakdown.earned.used/leaveBreakdown.earned.total)*100}%`}}></div></div>
+                        <strong>{leaveBreakdown.earned.used}/{leaveBreakdown.earned.total}</strong>
+                      </div>
+                    </div>
+                    <button className="att-apply-btn" onClick={() => setShowLeaveModal(true)}>
+                      Apply for Leave <FiPlusCircle />
+                    </button>
+                  </div>
+
+                  {/* Calendar Render */}
+                  {renderCalendar()}
+
+                  {/* Detailed Biometric Logs */}
+                  <div className="att-biometric-card">
+                    <div className="att-bio-header">
+                      <h3 className="att-card-title">Detailed Biometric Logs</h3>
+                      <span className="att-bio-date">{selectedBioDate}</span>
+                    </div>
+                    <div className="att-bio-body">
+                      {BIOMETRIC_LOGS[selectedBioDate] && BIOMETRIC_LOGS[selectedBioDate].length > 0 ? (
+                        <div className="att-timeline">
+                          {BIOMETRIC_LOGS[selectedBioDate].map(log => (
+                            <div key={log.id} className="att-timeline-item">
+                              <div className={`att-timeline-dot ${log.type === 'In' ? 't-dot-in' : 't-dot-out'}`}></div>
+                              <div className="att-timeline-card">
+                                <div className="att-t-time">{log.time}</div>
+                                <div className="att-t-gate">{log.gate}</div>
+                                <span className={`att-t-badge ${log.type === 'In' ? 't-badge-in' : 't-badge-out'}`}>{log.type}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="att-timeline-empty">
+                           <p>No biometric logs recorded for this day.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Daily Attendance Log */}
+                  <div className="att-log-card">
+                    <div className="att-log-header">
+                      <h3 className="att-card-title">Daily Attendance Log</h3>
+                      <select className="att-filter-select" value={attFilter} onChange={e => setAttFilter(e.target.value)}>
+                        <option value="All">Filter...</option>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                        <option value="On Leave">On Leave</option>
+                      </select>
+                    </div>
+                    <div className="att-log-table-wrap">
+                      <table className="att-log-table">
+                        <thead>
+                          <tr>
+                            <th></th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Time In</th>
+                            <th>Time Out</th>
+                            <th>Leave Reason</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredAttendance.map(a => (
+                            <tr 
+                              key={a.id} 
+                              onClick={() => setSelectedBioDate(a.date)} 
+                              className={selectedBioDate === a.date ? 'att-row-active' : ''}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <td 
+                                className="att-star" 
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleToggleStar(a.id)}
+                                title="Toggle Star"
+                              >
+                                {a.starred ? '★' : '☆'}
+                              </td>
+                              <td>{a.date}</td>
+                              <td>
+                                <span className={`att-log-status ${
+                                  a.status === 'Present' ? 'att-s-present' :
+                                  a.status === 'Absent' ? 'att-s-absent' : 'att-s-leave'
+                                }`}>{a.status}</span>
+                              </td>
+                              <td>{a.timeIn}</td>
+                              <td>{a.timeOut}</td>
+                              <td>{a.leaveReason}</td>
+                              <td>
+                                <span 
+                                  className="att-action-link"
+                                  onClick={() => alert(`Action triggered for ${a.date} (${a.status})`)}
+                                  title="View Details"
+                                >
+                                  {a.status === 'Absent' ? 'Report Error' : 'View Details'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <div className="d-schedule">
@@ -735,57 +1146,9 @@ export default function Dashboard() {
           </div>
 
           {/* ── Right ── */}
-          <div className="d-right">
-            <div className="d-cal">
-              <div className="d-cal-hd">
-                <button className="d-cal-arrow" onClick={handlePrevMonth}><FiChevronLeft /></button>
-                <span>{MONTH_NAMES[calMonth]} {calYear}</span>
-                <button className="d-cal-arrow" onClick={handleNextMonth}><FiChevronRight /></button>
-              </div>
-              {selectedDate && tab === 'notice' && (
-                <div className="d-cal-filter-badge">
-                  Filtering: <strong>{selectedDate}</strong>
-                  <button onClick={() => setSelectedDate(null)} className="d-cal-clear"><FiX /></button>
-                </div>
-              )}
-              <table className="d-cal-tbl">
-                <thead>
-                  <tr>
-                    {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>(
-                      <th key={d}>{d}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {calGrid.map((wk,wi) => {
-                    return (
-                      <tr key={wi}>
-                        {wk.map((day,di) => {
-                          const isToday = day === NOW.getDate() && calMonth === NOW.getMonth() && calYear === NOW.getFullYear();
-                          const dateStr = day ? `${day} ${MONTH_SHORT[calMonth]} ${calYear}` : null;
-                          const isSelected = selectedDate && dateStr === selectedDate;
-                          const hasNotice = tab === 'notice' && day && notices.some(n => n.date === dateStr);
-                          let cls = '';
-                          if (day == null) cls = 'empty';
-                          else if (isSelected) cls = 'selected';
-                          else if (isToday) cls = 'today';
-                          return (
-                            <td
-                              key={di}
-                              className={cls + (hasNotice ? ' has-notice' : '')}
-                              onClick={() => tab === 'notice' && handleCalDateClick(day)}
-                              style={tab === 'notice' && day ? { cursor: 'pointer' } : {}}
-                            >
-                              {day}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {tab !== 'attendance' && (
+            <div className="d-right">
+              {renderCalendar()}
 
             {tab === 'students' ? (
               <div className="s-stats">
@@ -852,7 +1215,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : tab === 'attendance' ? null : (
               <div className="d-events">
                 <div className="d-sec-head">
                   <h3>Events</h3>
@@ -870,6 +1233,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        )}
 
         </div>
       </div>
@@ -1189,6 +1553,44 @@ export default function Dashboard() {
           </div>
         );
       })()}
+
+      {/* ═══ APPLY FOR LEAVE MODAL ═══ */}
+      {showLeaveModal && (
+        <div className="n-modal-overlay" onClick={() => setShowLeaveModal(false)}>
+          <div className="n-modal" onClick={e => e.stopPropagation()}>
+            <div className="n-modal-header">
+              <h3>Apply for Leave</h3>
+              <button className="n-modal-close" onClick={() => setShowLeaveModal(false)}><FiX /></button>
+            </div>
+            <div className="n-modal-body">
+              <div className="n-form-field">
+                <label>Leave Type</label>
+                <select value={newLeave.type} onChange={e => setNewLeave(p => ({...p, type: e.target.value}))}>
+                  <option>Casual</option>
+                  <option>Sick</option>
+                  <option>Earned</option>
+                </select>
+              </div>
+              <div className="n-form-field">
+                <label>From Date</label>
+                <input type="date" value={newLeave.from} onChange={e => setNewLeave(p => ({...p, from: e.target.value}))} />
+              </div>
+              <div className="n-form-field">
+                <label>To Date (optional)</label>
+                <input type="date" value={newLeave.to} onChange={e => setNewLeave(p => ({...p, to: e.target.value}))} />
+              </div>
+              <div className="n-form-field">
+                <label>Reason</label>
+                <textarea placeholder="Enter reason for leave..." rows={3} value={newLeave.reason} onChange={e => setNewLeave(p => ({...p, reason: e.target.value}))} />
+              </div>
+            </div>
+            <div className="n-modal-footer">
+              <button className="n-modal-cancel" onClick={() => setShowLeaveModal(false)}>Cancel</button>
+              <button className="n-modal-submit" onClick={handleApplyLeave}>Submit Application</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
