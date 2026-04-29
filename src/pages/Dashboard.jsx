@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
-import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload, FiFilter, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload, FiFilter, FiChevronDown, FiEdit2, FiClock, FiCalendar } from 'react-icons/fi';
 import {
   FiGrid,
   FiUsers,
@@ -33,6 +33,18 @@ const SUBJECTS_DATA = [
   { id: 6, code: 'EC201', name: 'Digital Electronics', dept: 'ECE', year: '2nd', sec: '1', avgAttendance: 91, credits: 4, materials: [{name:'Logic Gates.pdf',date:'4 Apr 2026'},{name:'Flip Flops.pdf',date:'10 Apr 2026'}] },
   { id: 7, code: 'EC301', name: 'Signal Processing', dept: 'ECE', year: '3rd', sec: '1', avgAttendance: 78, credits: 3, materials: [{name:'Fourier Transform.pdf',date:'1 Apr 2026'}] },
   { id: 8, code: 'ME201', name: 'Thermodynamics', dept: 'ME', year: '2nd', sec: '1', avgAttendance: 82, credits: 4, materials: [{name:'Laws of Thermo.pdf',date:'5 Apr 2026'},{name:'Heat Engines.pdf',date:'12 Apr 2026'}] },
+];
+
+/* ── Exam data ── */
+const EXAMS_DATA = [
+  { id: 1, title: 'Mid Sem', subject: 'Algorithm', date: '12 Nov 2025', year: '3', sec: '1', status: 'Upcoming', invigilation: { exam: 'Mid Sem', room: 'B-201', date: '12 Nov', status: 'Assigned' } },
+  { id: 2, title: 'Class Test', subject: 'DBMS', date: '15 Nov 2025', year: '2', sec: '1', status: 'Scheduled', invigilation: null },
+  { id: 3, title: 'Viva', subject: 'Networks', date: '20 Nov 2025', year: '3', sec: '1', status: 'Scheduled', invigilation: null },
+  { id: 4, title: 'End Sem', subject: 'Java', date: '25 Nov 2025', year: '3', sec: '1', status: 'Upcoming', invigilation: { exam: 'End Sem', room: 'A-101', date: '25 Nov', status: 'Assigned' } },
+  { id: 5, title: 'Lab Exam', subject: 'OS', date: '28 Nov 2025', year: '3', sec: '1', status: 'Scheduled', invigilation: null },
+  { id: 6, title: 'Mid Sem', subject: 'Digital Elec', date: '5 Oct 2025', year: '2', sec: '1', status: 'Completed', invigilation: null },
+  { id: 7, title: 'Class Test', subject: 'Algorithm', date: '10 Oct 2025', year: '3', sec: '1', status: 'Completed', invigilation: null },
+  { id: 8, title: 'Quiz', subject: 'Networks', date: '18 Oct 2025', year: '3', sec: '1', status: 'Completed', invigilation: null },
 ];
 
 const TASKS = [
@@ -493,6 +505,36 @@ export default function Dashboard() {
     setSubjectUploadFile(file);
   };
 
+  /* ── Exam state ── */
+  const [examsData, setExamsData] = useState(EXAMS_DATA);
+  const [showCreateExam, setShowCreateExam] = useState(false);
+  const [showCompletedExams, setShowCompletedExams] = useState(false);
+  const [editExam, setEditExam] = useState(null);
+  const [newExam, setNewExam] = useState({ title: 'Mid Sem', subject: '', date: '', year: '3', sec: '1' });
+
+  const activeExams = useMemo(() => examsData.filter(e => e.status !== 'Completed'), [examsData]);
+  const completedExams = useMemo(() => examsData.filter(e => e.status === 'Completed'), [examsData]);
+  const examStats = useMemo(() => ({
+    total: examsData.length,
+    ongoing: examsData.filter(e => e.status === 'Upcoming').length,
+    pending: examsData.filter(e => e.status === 'Scheduled').length,
+    completed: completedExams.length,
+  }), [examsData, completedExams]);
+
+  const handleCreateExam = () => {
+    if (!newExam.subject || !newExam.date) return;
+    const id = Math.max(...examsData.map(e => e.id)) + 1;
+    setExamsData(prev => [...prev, { id, ...newExam, status: 'Scheduled', invigilation: null }]);
+    setNewExam({ title: 'Mid Sem', subject: '', date: '', year: '3', sec: '1' });
+    setShowCreateExam(false);
+  };
+
+  const handleSaveExam = () => {
+    if (!editExam) return;
+    setExamsData(prev => prev.map(e => e.id === editExam.id ? editExam : e));
+    setEditExam(null);
+  };
+
   /* ── Attendance state ── */
   const [overviewFilter, setOverviewFilter] = useState('Yearly');
   const [attOverview, setAttOverview] = useState(OVERVIEW_DATA_FILTERS['Yearly']);
@@ -778,7 +820,7 @@ export default function Dashboard() {
           </nav>
 
           {/* ── Centre ── */}
-          <div className={`d-centre ${(tab === 'attendance' || tab === 'subjects') ? 'd-centre-full' : ''}`}>
+          <div className={`d-centre ${(tab === 'attendance' || tab === 'subjects' || tab === 'exam') ? 'd-centre-full' : ''}`}>
             {tab === 'students' ? (
               <>
                 <h2 className="s-title">Subject Wise Attendance</h2>
@@ -1429,6 +1471,186 @@ export default function Dashboard() {
                   </div>
                 )}
               </>
+            ) : tab === 'exam' ? (
+              <>
+                {/* ── EXAM HEADER ── */}
+                <div className="exam-header">
+                  <div className="exam-header-left">
+                    <h2 className="exam-title">Exam Overview</h2>
+                  </div>
+                  <div className="exam-header-right">
+                    <button className="exam-create-btn" onClick={() => setShowCreateExam(true)}>+ Create Exam</button>
+                    <button className="exam-completed-btn" onClick={() => setShowCompletedExams(true)}>View Completed Exams</button>
+                  </div>
+                </div>
+
+                {/* ── EXAM STAT CARDS ── */}
+                <div className="exam-stats-grid">
+                  <div className="exam-stat-card">
+                    <span className="exam-stat-label">Total Exams</span>
+                    <span className="exam-stat-num">{examStats.total}</span>
+                  </div>
+                  <div className="exam-stat-card">
+                    <span className="exam-stat-label">Ongoing Exams</span>
+                    <span className="exam-stat-num">{examStats.ongoing}</span>
+                  </div>
+                  <div className="exam-stat-card">
+                    <span className="exam-stat-label">Pending Evaluation</span>
+                    <span className="exam-stat-num">{examStats.pending}</span>
+                  </div>
+                  <div className="exam-stat-card">
+                    <span className="exam-stat-label">Completed Exams</span>
+                    <span className="exam-stat-num">{examStats.completed}</span>
+                  </div>
+                </div>
+
+                {/* ── EXAM TABLE ── */}
+                <div className="exam-table-wrap">
+                  <table className="exam-table">
+                    <thead>
+                      <tr>
+                        <th>Exam Title</th><th>Subject</th><th>Date</th><th>Year/Sec</th><th>Status</th><th>Invigilation Duties</th><th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeExams.map(e => (
+                        <tr key={e.id}>
+                          <td className="exam-cell-title">{e.title}</td>
+                          <td>{e.subject}</td>
+                          <td>{e.date}</td>
+                          <td>{e.year}/{e.sec}</td>
+                          <td>
+                            <span className={`exam-status-badge ${e.status === 'Upcoming' ? 'exam-badge-upcoming' : 'exam-badge-scheduled'}`}>
+                              {e.status === 'Upcoming' ? <FiClock className="exam-badge-ico" /> : <FiCalendar className="exam-badge-ico" />}
+                              {e.status}
+                            </span>
+                          </td>
+                          <td>
+                            {e.invigilation ? (
+                              <div className="exam-invig">
+                                <span className="exam-invig-name">{e.invigilation.exam}<br/>{e.invigilation.room}</span>
+                                <span className="exam-invig-date">{e.invigilation.date}</span>
+                                <span className="exam-invig-status">{e.invigilation.status}</span>
+                              </div>
+                            ) : <span className="exam-invig-none">-</span>}
+                          </td>
+                          <td>
+                            <button className="exam-edit-btn" onClick={() => setEditExam({...e})}><FiEdit2 /></button>
+                          </td>
+                        </tr>
+                      ))}
+                      {activeExams.length === 0 && <tr><td colSpan={7} className="exam-no-data">No active exams.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* ── CREATE EXAM MODAL ── */}
+                {showCreateExam && (
+                  <div className="n-modal-overlay" onClick={() => setShowCreateExam(false)}>
+                    <div className="n-modal" onClick={ev => ev.stopPropagation()}>
+                      <div className="n-modal-header">
+                        <h3>Create New Exam</h3>
+                        <button className="n-modal-close" onClick={() => setShowCreateExam(false)}><FiX /></button>
+                      </div>
+                      <div className="n-modal-body">
+                        <div className="n-form-field">
+                          <label>Exam Type</label>
+                          <select value={newExam.title} onChange={ev => setNewExam(p => ({...p, title: ev.target.value}))}>
+                            <option>Mid Sem</option><option>End Sem</option><option>Class Test</option><option>Quiz</option><option>Viva</option><option>Lab Exam</option>
+                          </select>
+                        </div>
+                        <div className="n-form-field">
+                          <label>Subject</label>
+                          <input type="text" placeholder="e.g. Algorithm" value={newExam.subject} onChange={ev => setNewExam(p => ({...p, subject: ev.target.value}))} />
+                        </div>
+                        <div className="n-form-field">
+                          <label>Date</label>
+                          <input type="date" value={newExam.date} onChange={ev => setNewExam(p => ({...p, date: ev.target.value}))} />
+                        </div>
+                        <div className="n-form-field" style={{display:'flex',gap:12}}>
+                          <div style={{flex:1}}>
+                            <label>Year</label>
+                            <select value={newExam.year} onChange={ev => setNewExam(p => ({...p, year: ev.target.value}))}>
+                              <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option>
+                            </select>
+                          </div>
+                          <div style={{flex:1}}>
+                            <label>Section</label>
+                            <select value={newExam.sec} onChange={ev => setNewExam(p => ({...p, sec: ev.target.value}))}>
+                              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="n-modal-footer">
+                        <button className="n-modal-cancel" onClick={() => setShowCreateExam(false)}>Cancel</button>
+                        <button className="n-modal-submit" onClick={handleCreateExam} disabled={!newExam.subject || !newExam.date}>Create Exam</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── COMPLETED EXAMS MODAL ── */}
+                {showCompletedExams && (
+                  <div className="n-modal-overlay" onClick={() => setShowCompletedExams(false)}>
+                    <div className="n-modal exam-completed-modal" onClick={ev => ev.stopPropagation()}>
+                      <div className="n-modal-header">
+                        <h3>Completed Exams ({completedExams.length})</h3>
+                        <button className="n-modal-close" onClick={() => setShowCompletedExams(false)}><FiX /></button>
+                      </div>
+                      <div className="exam-completed-body">
+                        {completedExams.length > 0 ? completedExams.map(e => (
+                          <div key={e.id} className="exam-completed-row">
+                            <span className="exam-completed-title">{e.title}</span>
+                            <span className="exam-completed-subj">{e.subject}</span>
+                            <span className="exam-completed-date">{e.date}</span>
+                            <span className="exam-completed-ys">{e.year}/{e.sec}</span>
+                            <span className="exam-badge-completed">✓ Completed</span>
+                          </div>
+                        )) : <p className="exam-no-data" style={{padding:20}}>No completed exams yet.</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── EDIT EXAM MODAL ── */}
+                {editExam && (
+                  <div className="n-modal-overlay" onClick={() => setEditExam(null)}>
+                    <div className="n-modal" onClick={ev => ev.stopPropagation()}>
+                      <div className="n-modal-header">
+                        <h3>Edit Exam</h3>
+                        <button className="n-modal-close" onClick={() => setEditExam(null)}><FiX /></button>
+                      </div>
+                      <div className="n-modal-body">
+                        <div className="n-form-field">
+                          <label>Exam Title</label>
+                          <select value={editExam.title} onChange={ev => setEditExam(p => ({...p, title: ev.target.value}))}>
+                            <option>Mid Sem</option><option>End Sem</option><option>Class Test</option><option>Quiz</option><option>Viva</option><option>Lab Exam</option>
+                          </select>
+                        </div>
+                        <div className="n-form-field">
+                          <label>Subject</label>
+                          <input type="text" value={editExam.subject} onChange={ev => setEditExam(p => ({...p, subject: ev.target.value}))} />
+                        </div>
+                        <div className="n-form-field">
+                          <label>Date</label>
+                          <input type="text" value={editExam.date} onChange={ev => setEditExam(p => ({...p, date: ev.target.value}))} />
+                        </div>
+                        <div className="n-form-field">
+                          <label>Status</label>
+                          <select value={editExam.status} onChange={ev => setEditExam(p => ({...p, status: ev.target.value}))}>
+                            <option>Upcoming</option><option>Scheduled</option><option>Completed</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="n-modal-footer">
+                        <button className="n-modal-cancel" onClick={() => setEditExam(null)}>Cancel</button>
+                        <button className="n-modal-submit" onClick={handleSaveExam}>Save Changes</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="d-schedule">
@@ -1454,7 +1676,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── Right ── */}
-          {tab !== 'attendance' && tab !== 'subjects' && (
+          {tab !== 'attendance' && tab !== 'subjects' && tab !== 'exam' && (
             <div className="d-right">
               {renderCalendar()}
 
