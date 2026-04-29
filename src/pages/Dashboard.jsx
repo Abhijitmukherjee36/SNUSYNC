@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
-import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload, FiFilter, FiChevronDown } from 'react-icons/fi';
 import {
   FiGrid,
   FiUsers,
@@ -18,9 +18,21 @@ const NAV = [
   { id: 'students',    label: 'Students',     icon: <FiUsers /> },
   { id: 'assignments', label: 'Assignments',  icon: <FiFileText /> },
   { id: 'subjects',    label: 'Subjects',     icon: <FiBook /> },
-  { id: 'notice',      label: 'Notice',       icon: <FiBell /> },
   { id: 'attendance',  label: 'Attendance',   icon: <FiCheckSquare /> },
+  { id: 'notice',      label: 'Notice',       icon: <FiBell /> },
   { id: 'exam',        label: 'Exam',         icon: <FiEdit3 /> },
+];
+
+/* ── Subjects data ── */
+const SUBJECTS_DATA = [
+  { id: 1, code: 'ALG301', name: 'Algorithm', dept: 'CSE', year: '3rd', sec: '1', avgAttendance: 88, credits: 3, materials: [{name:'Lecture 1.pdf',date:'10 Apr 2026'},{name:'Lecture 2.pdf',date:'15 Apr 2026'},{name:'Assignment 1.pdf',date:'20 Apr 2026'}] },
+  { id: 2, code: 'CN301', name: 'Computer Networks', dept: 'CSE', year: '3rd', sec: '1', avgAttendance: 92, credits: 3, materials: [{name:'Module 1.pdf',date:'8 Apr 2026'},{name:'Lab Manual.pdf',date:'12 Apr 2026'}] },
+  { id: 3, code: 'DBMS301', name: 'Database Management', dept: 'CSE', year: '3rd', sec: '1', avgAttendance: 85, credits: 3, materials: [{name:'ER Diagrams.pdf',date:'5 Apr 2026'},{name:'SQL Notes.pdf',date:'9 Apr 2026'},{name:'Normalization.pdf',date:'14 Apr 2026'}] },
+  { id: 4, code: 'JAVA301', name: 'Java', dept: 'CSE', year: '3rd', sec: '1', avgAttendance: 90, credits: 3, materials: [{name:'OOP Concepts.pdf',date:'3 Apr 2026'},{name:'Collections.pdf',date:'7 Apr 2026'},{name:'Multithreading.pdf',date:'11 Apr 2026'},{name:'Swing.pdf',date:'18 Apr 2026'}] },
+  { id: 5, code: 'CS301', name: 'Operating Systems', dept: 'CSE', year: '3rd', sec: '1', avgAttendance: 87, credits: 3, materials: [{name:'Process Mgmt.pdf',date:'2 Apr 2026'},{name:'Memory Mgmt.pdf',date:'6 Apr 2026'},{name:'File Systems.pdf',date:'13 Apr 2026'}] },
+  { id: 6, code: 'EC201', name: 'Digital Electronics', dept: 'ECE', year: '2nd', sec: '1', avgAttendance: 91, credits: 4, materials: [{name:'Logic Gates.pdf',date:'4 Apr 2026'},{name:'Flip Flops.pdf',date:'10 Apr 2026'}] },
+  { id: 7, code: 'EC301', name: 'Signal Processing', dept: 'ECE', year: '3rd', sec: '1', avgAttendance: 78, credits: 3, materials: [{name:'Fourier Transform.pdf',date:'1 Apr 2026'}] },
+  { id: 8, code: 'ME201', name: 'Thermodynamics', dept: 'ME', year: '2nd', sec: '1', avgAttendance: 82, credits: 4, materials: [{name:'Laws of Thermo.pdf',date:'5 Apr 2026'},{name:'Heat Engines.pdf',date:'12 Apr 2026'}] },
 ];
 
 const TASKS = [
@@ -422,6 +434,65 @@ export default function Dashboard() {
   const [statusTab, setStatusTab] = useState('submitted');
   const [expandedUnsub, setExpandedUnsub] = useState(null);
 
+  /* ── Subjects state ── */
+  const [subjectsData, setSubjectsData] = useState(SUBJECTS_DATA);
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [subjectFilterOpen, setSubjectFilterOpen] = useState(false);
+  const [subjFilterDept, setSubjFilterDept] = useState('All');
+  const [subjFilterYear, setSubjFilterYear] = useState('All');
+  const [subjFilterCredits, setSubjFilterCredits] = useState('All');
+  const [subjFilterAtt, setSubjFilterAtt] = useState('All');
+  const [subjectUploadModal, setSubjectUploadModal] = useState(null);
+  const [subjectUploadFile, setSubjectUploadFile] = useState(null);
+  const [subjectMaterialsView, setSubjectMaterialsView] = useState(null);
+  const [uploadSuccess, setUploadSuccess] = useState(null);
+  const [subjCardModal, setSubjCardModal] = useState(null);
+  const [subjMaterialPreview, setSubjMaterialPreview] = useState(null);
+
+  const subjActiveFilterCount = [subjFilterDept, subjFilterYear, subjFilterCredits, subjFilterAtt].filter(f => f !== 'All').length;
+
+  const filteredSubjects = useMemo(() => {
+    let list = [...subjectsData];
+    if (subjectSearch.trim()) {
+      const q = subjectSearch.toLowerCase();
+      list = list.filter(s => s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) || s.dept.toLowerCase().includes(q));
+    }
+    if (subjFilterDept !== 'All') list = list.filter(s => s.dept === subjFilterDept);
+    if (subjFilterYear !== 'All') list = list.filter(s => s.year === subjFilterYear);
+    if (subjFilterCredits !== 'All') list = list.filter(s => String(s.credits) === subjFilterCredits);
+    if (subjFilterAtt === '90+') list = list.filter(s => s.avgAttendance >= 90);
+    else if (subjFilterAtt === '80-89') list = list.filter(s => s.avgAttendance >= 80 && s.avgAttendance < 90);
+    else if (subjFilterAtt === '<80') list = list.filter(s => s.avgAttendance < 80);
+    return list;
+  }, [subjectsData, subjectSearch, subjFilterDept, subjFilterYear, subjFilterCredits, subjFilterAtt]);
+
+  const subjectStats = useMemo(() => {
+    const totalSubjects = subjectsData.length;
+    const deptList = [...new Set(subjectsData.map(s => s.dept))];
+    const departments = deptList.length;
+    const totalMaterials = subjectsData.reduce((sum, s) => sum + s.materials.length, 0);
+    const avgAttendance = Math.round(subjectsData.reduce((sum, s) => sum + s.avgAttendance, 0) / totalSubjects);
+    return { totalSubjects, departments, deptList, totalMaterials, avgAttendance };
+  }, [subjectsData]);
+
+  const clearSubjFilters = () => { setSubjFilterDept('All'); setSubjFilterYear('All'); setSubjFilterCredits('All'); setSubjFilterAtt('All'); };
+
+  const handleSubjectUpload = () => {
+    if (!subjectUploadFile || !subjectUploadModal) return;
+    const newMat = { name: subjectUploadFile.name, date: new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) };
+    setSubjectsData(prev => prev.map(s => s.id === subjectUploadModal.id ? { ...s, materials: [...s.materials, newMat] } : s));
+    setUploadSuccess(subjectUploadModal.name);
+    setSubjectUploadFile(null);
+    setSubjectUploadModal(null);
+    setTimeout(() => setUploadSuccess(null), 2500);
+  };
+
+  const handleSubjectFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setSubjectUploadFile(file);
+  };
+
   /* ── Attendance state ── */
   const [overviewFilter, setOverviewFilter] = useState('Yearly');
   const [attOverview, setAttOverview] = useState(OVERVIEW_DATA_FILTERS['Yearly']);
@@ -632,6 +703,20 @@ export default function Dashboard() {
                   if (day == null) cls = 'empty';
                   else if (isSelected) cls = 'selected';
                   else if (isToday) cls = 'today';
+
+                  if (tab === 'attendance' && day != null) {
+                    const attMatch = dailyAttendance.find(a => {
+                      const dayNum = parseInt(a.date);
+                      const monthStr = a.date.split(' ')[1];
+                      return dayNum === day && MONTH_SHORT[calMonth] === monthStr && calYear === NOW.getFullYear();
+                    });
+                    if (attMatch) {
+                      if (attMatch.status === 'Present') cls += ' cal-att-present';
+                      else if (attMatch.status === 'Absent') cls += ' cal-att-absent';
+                      else if (attMatch.status.includes('Leave')) cls += ' cal-att-leave';
+                    }
+                  }
+
                   return (
                     <td
                       key={di}
@@ -693,7 +778,7 @@ export default function Dashboard() {
           </nav>
 
           {/* ── Centre ── */}
-          <div className={`d-centre ${tab === 'attendance' ? 'd-centre-full' : ''}`}>
+          <div className={`d-centre ${(tab === 'attendance' || tab === 'subjects') ? 'd-centre-full' : ''}`}>
             {tab === 'students' ? (
               <>
                 <h2 className="s-title">Subject Wise Attendance</h2>
@@ -1121,6 +1206,229 @@ export default function Dashboard() {
                   </div>
                 </div>
               </>
+            ) : tab === 'subjects' ? (
+              <>
+                {/* ── SUBJECTS HEADER ── */}
+                <div className="subj-header">
+                  <div className="subj-header-left">
+                    <h2 className="subj-title">Subjects</h2>
+                    <p className="subj-subtitle">Keep track of all the subjects you're teaching</p>
+                  </div>
+                  <div className="subj-header-right">
+                    <div className="subj-search-bar">
+                      <FiSearch className="subj-search-icon" />
+                      <input type="text" placeholder="Search..." className="subj-search-input" value={subjectSearch} onChange={e => setSubjectSearch(e.target.value)} />
+                    </div>
+                    <div className="subj-filter-wrap">
+                      <button className="subj-filter-btn" onClick={() => setSubjectFilterOpen(p => !p)}>
+                        <FiFilter /> Filter {subjActiveFilterCount > 0 && <span className="subj-filter-badge">{subjActiveFilterCount}</span>}
+                      </button>
+                      {subjectFilterOpen && (
+                        <div className="subj-filter-dropdown" onClick={e => e.stopPropagation()}>
+                          <div className="subj-filter-hd"><span>Filters</span>{subjActiveFilterCount > 0 && <button className="subj-filter-clear" onClick={clearSubjFilters}>Clear All</button>}</div>
+                          <div className="subj-filter-label">Department</div>
+                          <div className="subj-filter-chips">
+                            {['All','CSE','ECE','ME'].map(d => (
+                              <button key={d} className={`subj-chip ${subjFilterDept === d ? 'active' : ''}`} onClick={() => setSubjFilterDept(d)}>{d === 'All' ? 'All' : d}</button>
+                            ))}
+                          </div>
+                          <div className="subj-filter-label">Year</div>
+                          <div className="subj-filter-chips">
+                            {['All','2nd','3rd','4th'].map(y => (
+                              <button key={y} className={`subj-chip ${subjFilterYear === y ? 'active' : ''}`} onClick={() => setSubjFilterYear(y)}>{y === 'All' ? 'All' : y}</button>
+                            ))}
+                          </div>
+                          <div className="subj-filter-label">Credits</div>
+                          <div className="subj-filter-chips">
+                            {['All','3','4'].map(c => (
+                              <button key={c} className={`subj-chip ${subjFilterCredits === c ? 'active' : ''}`} onClick={() => setSubjFilterCredits(c)}>{c === 'All' ? 'All' : c}</button>
+                            ))}
+                          </div>
+                          <div className="subj-filter-label">Attendance</div>
+                          <div className="subj-filter-chips">
+                            {['All','90+','80-89','<80'].map(a => (
+                              <button key={a} className={`subj-chip ${subjFilterAtt === a ? 'active' : ''}`} onClick={() => setSubjFilterAtt(a)}>{a === 'All' ? 'All' : a + (a !== '<80' ? '' : '')}</button>
+                            ))}
+                          </div>
+                          <button className="subj-filter-apply" onClick={() => setSubjectFilterOpen(false)}>Apply Filters</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active filter tags */}
+                {subjActiveFilterCount > 0 && (
+                  <div className="subj-active-filters">
+                    {subjFilterDept !== 'All' && <span className="subj-atag">Dept: {subjFilterDept} <button onClick={() => setSubjFilterDept('All')}>×</button></span>}
+                    {subjFilterYear !== 'All' && <span className="subj-atag">Year: {subjFilterYear} <button onClick={() => setSubjFilterYear('All')}>×</button></span>}
+                    {subjFilterCredits !== 'All' && <span className="subj-atag">Credits: {subjFilterCredits} <button onClick={() => setSubjFilterCredits('All')}>×</button></span>}
+                    {subjFilterAtt !== 'All' && <span className="subj-atag">Attendance: {subjFilterAtt} <button onClick={() => setSubjFilterAtt('All')}>×</button></span>}
+                    <button className="subj-clear-all" onClick={clearSubjFilters}>Clear All</button>
+                  </div>
+                )}
+
+                {/* ── SUBJECT STAT CARDS ── */}
+                <div className="subj-cards-section">
+                  <h3 className="subj-cards-label">📊 Subject Cards</h3>
+                  <div className="subj-cards-grid">
+                    <div className="subj-stat-card subj-stat-total subj-stat-clickable" onClick={() => setSubjCardModal('subjects')}>
+                      <div className="subj-stat-icon subj-ico-total">📚</div>
+                      <div className="subj-stat-info">
+                        <span className="subj-stat-num">{subjectStats.totalSubjects}</span>
+                        <span className="subj-stat-label">Total Subjects</span>
+                      </div>
+                    </div>
+                    <div className="subj-stat-card subj-stat-dept subj-stat-clickable" onClick={() => setSubjCardModal('departments')}>
+                      <div className="subj-stat-icon subj-ico-dept">👥</div>
+                      <div className="subj-stat-info">
+                        <span className="subj-stat-num">{subjectStats.departments}</span>
+                        <span className="subj-stat-label">Departments</span>
+                      </div>
+                    </div>
+                    <div className="subj-stat-card subj-stat-mat subj-stat-clickable" onClick={() => setSubjCardModal('materials')}>
+                      <div className="subj-stat-icon subj-ico-mat">📋</div>
+                      <div className="subj-stat-info">
+                        <span className="subj-stat-num">{subjectStats.totalMaterials}</span>
+                        <span className="subj-stat-label">Materials Uploaded</span>
+                      </div>
+                    </div>
+                    <div className="subj-stat-card subj-stat-att subj-stat-clickable" onClick={() => setSubjCardModal('attendance')}>
+                      <div className="subj-stat-icon subj-ico-att">📈</div>
+                      <div className="subj-stat-info">
+                        <span className="subj-stat-num">{subjectStats.avgAttendance}%</span>
+                        <span className="subj-stat-label">Overall Avg Attendance</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── SUBJECT TABLE ── */}
+                <div className="subj-table-wrap">
+                  <table className="subj-table">
+                    <thead>
+                      <tr>
+                        <th>Subject Code</th><th>Subject Name</th><th>Dept</th><th>Year, Sec</th><th>Avg Attendance (%)</th><th>Credits</th><th>Materials</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSubjects.length > 0 ? filteredSubjects.map(s => (
+                        <tr key={s.id}>
+                          <td className="subj-cell-code">{s.code}</td>
+                          <td>{s.name}</td>
+                          <td>{s.dept}</td>
+                          <td>{s.year}, {s.sec}</td>
+                          <td>
+                            <div className="subj-att-cell">
+                              <div className="subj-att-bar-bg"><div className="subj-att-bar-fill" style={{width:`${s.avgAttendance}%`}} /></div>
+                              <span>{s.avgAttendance}%</span>
+                            </div>
+                          </td>
+                          <td>{s.credits}</td>
+                          <td>
+                            <div className="subj-mat-cell">
+                              <button className="subj-upload-btn" onClick={() => setSubjectUploadModal(s)}>Upload</button>
+                              <button className="subj-mat-dropdown-btn" onClick={() => setSubjectMaterialsView(subjectMaterialsView === s.id ? null : s.id)}><FiChevronDown /></button>
+                            </div>
+                            {subjectMaterialsView === s.id && (
+                              <div className="subj-mat-list">
+                                {s.materials.length > 0 ? s.materials.map((m, i) => (
+                                  <div key={i} className="subj-mat-item subj-mat-item-click" onClick={() => setSubjMaterialPreview({subject: s.name, material: m})}>
+                                    <FiPaperclip className="subj-mat-clip" />
+                                    <span className="subj-mat-name">{m.name}</span>
+                                    <span className="subj-mat-date">{m.date}</span>
+                                  </div>
+                                )) : <span className="subj-mat-empty">No materials yet</span>}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan={7} className="subj-no-data">No subjects found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {uploadSuccess && <div className="subj-upload-toast">✓ Material uploaded to {uploadSuccess}</div>}
+
+                {/* ── STAT CARD DETAIL MODAL ── */}
+                {subjCardModal && (
+                  <div className="n-modal-overlay" onClick={() => setSubjCardModal(null)}>
+                    <div className="n-modal subj-detail-modal" onClick={e => e.stopPropagation()}>
+                      <div className="n-modal-header">
+                        <h3>{subjCardModal === 'subjects' ? 'All Subjects' : subjCardModal === 'departments' ? 'Departments' : subjCardModal === 'materials' ? 'All Materials' : 'Attendance Overview'}</h3>
+                        <button className="n-modal-close" onClick={() => setSubjCardModal(null)}><FiX /></button>
+                      </div>
+                      <div className="subj-detail-body">
+                        {subjCardModal === 'subjects' && subjectsData.map(s => (
+                          <div key={s.id} className="subj-detail-row">
+                            <span className="subj-detail-code">{s.code}</span>
+                            <span className="subj-detail-name">{s.name}</span>
+                            <span className="subj-detail-dept-tag">{s.dept}</span>
+                            <span className="subj-detail-meta">{s.year} Year · {s.credits} Credits</span>
+                          </div>
+                        ))}
+                        {subjCardModal === 'departments' && subjectStats.deptList.map(dept => {
+                          const deptSubjects = subjectsData.filter(s => s.dept === dept);
+                          return (
+                            <div key={dept} className="subj-dept-block">
+                              <div className="subj-dept-hd"><span className="subj-detail-dept-tag">{dept}</span><span>{deptSubjects.length} subject{deptSubjects.length > 1 ? 's' : ''}</span></div>
+                              {deptSubjects.map(s => <div key={s.id} className="subj-dept-sub">{s.code} — {s.name}</div>)}
+                            </div>
+                          );
+                        })}
+                        {subjCardModal === 'materials' && subjectsData.map(s => (
+                          <div key={s.id} className="subj-mat-block">
+                            <div className="subj-mat-block-hd">{s.code} — {s.name} <span className="subj-mat-count">{s.materials.length} files</span></div>
+                            {s.materials.map((m, i) => (
+                              <div key={i} className="subj-mat-item subj-mat-item-click" onClick={() => { setSubjCardModal(null); setSubjMaterialPreview({subject: s.name, material: m}); }}>
+                                <FiPaperclip className="subj-mat-clip" /><span className="subj-mat-name">{m.name}</span><span className="subj-mat-date">{m.date}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                        {subjCardModal === 'attendance' && (
+                          <div className="subj-att-overview">
+                            {[...subjectsData].sort((a,b) => b.avgAttendance - a.avgAttendance).map(s => (
+                              <div key={s.id} className="subj-att-row">
+                                <span className="subj-att-row-name">{s.code}</span>
+                                <div className="subj-att-bar-bg subj-att-bar-wide"><div className="subj-att-bar-fill" style={{width:`${s.avgAttendance}%`, background: s.avgAttendance >= 90 ? '#43a047' : s.avgAttendance >= 80 ? '#fb8c00' : '#ef5350'}} /></div>
+                                <span className={`subj-att-row-pct ${s.avgAttendance >= 90 ? 'att-good' : s.avgAttendance >= 80 ? 'att-warn' : 'att-low'}`}>{s.avgAttendance}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── MATERIAL PREVIEW MODAL ── */}
+                {subjMaterialPreview && (
+                  <div className="n-modal-overlay" onClick={() => setSubjMaterialPreview(null)}>
+                    <div className="n-modal subj-preview-modal" onClick={e => e.stopPropagation()}>
+                      <div className="n-modal-header">
+                        <h3>{subjMaterialPreview.material.name}</h3>
+                        <button className="n-modal-close" onClick={() => setSubjMaterialPreview(null)}><FiX /></button>
+                      </div>
+                      <div className="subj-preview-body">
+                        <div className="subj-preview-icon-wrap"><FiFileText className="subj-preview-icon" /></div>
+                        <h4 className="subj-preview-fname">{subjMaterialPreview.material.name}</h4>
+                        <p className="subj-preview-meta">Subject: <strong>{subjMaterialPreview.subject}</strong></p>
+                        <p className="subj-preview-meta">Uploaded: <strong>{subjMaterialPreview.material.date}</strong></p>
+                        <p className="subj-preview-meta">Type: <strong>{subjMaterialPreview.material.name.split('.').pop().toUpperCase()}</strong></p>
+                      </div>
+                      <div className="n-modal-footer">
+                        <button className="n-modal-cancel" onClick={() => setSubjMaterialPreview(null)}>Close</button>
+                        <button className="n-modal-submit">
+                          <FiDownload style={{marginRight:6}} /> Download
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="d-schedule">
@@ -1146,7 +1454,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── Right ── */}
-          {tab !== 'attendance' && (
+          {tab !== 'attendance' && tab !== 'subjects' && (
             <div className="d-right">
               {renderCalendar()}
 
@@ -1553,6 +1861,44 @@ export default function Dashboard() {
           </div>
         );
       })()}
+
+      {/* ═══ UPLOAD MATERIAL MODAL ═══ */}
+      {subjectUploadModal && (
+        <div className="n-modal-overlay" onClick={() => { setSubjectUploadModal(null); setSubjectUploadFile(null); }}>
+          <div className="n-modal" onClick={e => e.stopPropagation()}>
+            <div className="n-modal-header">
+              <h3>Upload Material — {subjectUploadModal.name}</h3>
+              <button className="n-modal-close" onClick={() => { setSubjectUploadModal(null); setSubjectUploadFile(null); }}><FiX /></button>
+            </div>
+            <div className="n-modal-body">
+              <div className="n-form-field">
+                <label>Subject</label>
+                <input type="text" value={`${subjectUploadModal.code} — ${subjectUploadModal.name}`} readOnly />
+              </div>
+              <div className="n-form-field">
+                <label>Select File</label>
+                <div className="a-upload-area">
+                  <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,image/*" id="subj-file-input" className="a-file-input" onChange={handleSubjectFileChange} />
+                  <label htmlFor="subj-file-input" className="a-upload-label">
+                    <FiUpload className="a-upload-ico" />
+                    <span>{subjectUploadFile ? subjectUploadFile.name : 'Choose file or drag here'}</span>
+                  </label>
+                </div>
+              </div>
+              <p className="subj-existing-label">Existing Materials ({subjectUploadModal.materials.length})</p>
+              <div className="subj-existing-list">
+                {subjectUploadModal.materials.map((m, i) => (
+                  <div key={i} className="subj-mat-item"><FiPaperclip className="subj-mat-clip" /><span>{m.name}</span><span className="subj-mat-date">{m.date}</span></div>
+                ))}
+              </div>
+            </div>
+            <div className="n-modal-footer">
+              <button className="n-modal-cancel" onClick={() => { setSubjectUploadModal(null); setSubjectUploadFile(null); }}>Cancel</button>
+              <button className="n-modal-submit" onClick={handleSubjectUpload} disabled={!subjectUploadFile}>Upload Material</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ APPLY FOR LEAVE MODAL ═══ */}
       {showLeaveModal && (
