@@ -52,8 +52,31 @@ export const WEEKLY_SCHEDULE = {
 };
 
 /* ── Events ── */
+const _futureDate = (daysAhead) => {
+  const d = new Date(); d.setDate(d.getDate() + daysAhead);
+  return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+};
+const _futureDue = (daysAhead) => {
+  const d = new Date(); d.setDate(d.getDate() + daysAhead);
+  return `Due: ${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}, 5:00 PM`;
+};
+
 export const EVENTS = [
-  { title: 'Basketball', date: '12 Nov 2025', desc: 'Come cheer on your favorite teams in a series of intense matchups. Food and drinks available!' },
+  { id: 1, title: 'Basketball Tournament', date: _futureDate(3), desc: 'Come cheer on your favorite teams in a series of intense matchups. Food and drinks available!', venue: 'Sports Complex', time: '3:00 PM' },
+  { id: 2, title: 'Tech Fest — Hackathon', date: _futureDate(8), desc: '24-hour coding challenge. Build innovative solutions to real-world problems. Cash prizes worth ₹50,000!', venue: 'CS Block, Lab 1-4', time: '9:00 AM' },
+  { id: 3, title: 'Annual Alumni Meet', date: _futureDate(15), desc: 'Connect with alumni from all batches. Networking lunch and panel discussion on industry trends.', venue: 'Auditorium', time: '10:00 AM' },
+  { id: 4, title: 'Cultural Night — Utsav', date: _futureDate(22), desc: 'Music, dance, drama — the grand finale of the cultural season. All departments compete for the trophy.', venue: 'Open Air Theatre', time: '6:00 PM' },
+  { id: 5, title: 'Research Paper Symposium', date: _futureDate(30), desc: 'Faculty and students present their latest research findings. Best paper awards in each track.', venue: 'Conference Hall', time: '11:00 AM' },
+];
+
+/* ── Tasks ── */
+export const DEFAULT_TASKS = [
+  { id: 1, title: 'Upload Algorithm Grades', date: _futureDue(1), info: 'Finalize and upload mid-sem marks for 3rd Year, Sec 1.', priority: 'high', completed: false },
+  { id: 2, title: 'Review DBMS Assignments', date: _futureDue(3), info: 'Check remaining 15 assignments for 3rd Year, Sec 1.', priority: 'medium', completed: false },
+  { id: 3, title: 'Create Java Lab Test', date: _futureDue(5), info: 'Prepare 3 coding questions for the upcoming lab test.', priority: 'medium', completed: false },
+  { id: 4, title: 'Submit Syllabus Revision', date: _futureDue(8), info: 'Update the Algorithm syllabus for BOS meeting review.', priority: 'low', completed: false },
+  { id: 5, title: 'Grade OS Lab Reports', date: _futureDue(6), info: 'Evaluate 55 lab reports for 3rd Year Operating Systems.', priority: 'high', completed: false },
+  { id: 6, title: 'Prepare CN Lecture Slides', date: _futureDue(10), info: 'Create slides for Module 4 — Transport Layer protocols.', priority: 'low', completed: false },
 ];
 
 /* ── Subjects ── */
