@@ -88,7 +88,7 @@ const Login = () => {
       </div>
 
       {/* Footer */}
-      <div className="auth-footer">© 2025 SNU ERP System</div>
+      <div className="auth-footer">© {new Date().getFullYear()} SNU ERP System</div>
     </div>
   );
 };

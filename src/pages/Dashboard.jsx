@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { FiSearch, FiPlusCircle, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiSend, FiAlertCircle, FiPaperclip, FiUpload, FiDownload, FiFilter, FiChevronDown, FiEdit2, FiClock, FiCalendar } from 'react-icons/fi';
 import {
   FiGrid,
@@ -13,6 +13,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import snuLogo from '../assets/snu-logo.png';
 import './Dashboard.css';
 
+/* ── Month names helper ── */
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 const NAV = [
   { id: 'dashboard',   label: 'Dashboard',   icon: <FiGrid /> },
   { id: 'students',    label: 'Students',     icon: <FiUsers /> },
@@ -22,6 +26,43 @@ const NAV = [
   { id: 'notice',      label: 'Notice',       icon: <FiBell /> },
   { id: 'exam',        label: 'Exam',         icon: <FiEdit3 /> },
 ];
+
+/* ── Daily Schedule (day-of-week based timetable) ── */
+const WEEKLY_SCHEDULE = {
+  0: [], // Sunday
+  1: [   // Monday
+    { time: '09:00 – 09:50', subject: 'DBMS', code: 'DBMS301', room: 'C-102', type: 'Lecture' },
+    { time: '10:00 – 10:50', subject: 'Algorithm', code: 'ALG301', room: 'B-201', type: 'Lecture' },
+    { time: '11:00 – 11:50', subject: 'Java', code: 'JAVA301', room: 'A-201', type: 'Lecture' },
+    { time: '12:00 – 12:45', subject: 'Lunch Break', room: 'Cafeteria', type: 'Break' },
+    { time: '12:45 – 02:15', subject: 'Algorithm Lab', code: 'ALG301', room: 'Lab-1', type: 'Lab' },
+  ],
+  2: [   // Tuesday
+    { time: '09:00 – 10:50', subject: 'Java Lab', code: 'JAVA301', room: 'Lab-3', type: 'Lab' },
+    { time: '11:00 – 11:50', subject: 'Operating Sys', code: 'CS301', room: 'A-105', type: 'Lecture' },
+    { time: '12:00 – 12:45', subject: 'Lunch Break', room: 'Cafeteria', type: 'Break' },
+    { time: '12:45 – 01:35', subject: 'DBMS', code: 'DBMS301', room: 'C-102', type: 'Tutorial' },
+  ],
+  3: [   // Wednesday
+    { time: '09:00 – 09:50', subject: 'Algorithm', code: 'ALG301', room: 'B-201', type: 'Lecture' },
+    { time: '10:00 – 10:50', subject: 'Computer Networks', code: 'CN301', room: 'B-103', type: 'Lecture' },
+    { time: '11:00 – 11:50', subject: 'Java', code: 'JAVA301', room: 'A-201', type: 'Lecture' },
+    { time: '12:00 – 12:45', subject: 'Lunch Break', room: 'Cafeteria', type: 'Break' },
+    { time: '01:00 – 02:30', subject: 'CN Lab', code: 'CN301', room: 'Lab-2', type: 'Lab' },
+    { time: '02:45 – 03:35', subject: 'Operating Sys', code: 'CS301', room: 'B-103', type: 'Tutorial' },
+  ],
+  4: [   // Thursday
+    { time: '09:00 – 10:50', subject: 'DBMS Lab', code: 'DBMS301', room: 'Lab-1', type: 'Lab' },
+    { time: '11:00 – 11:50', subject: 'Algorithm', code: 'ALG301', room: 'B-201', type: 'Tutorial' },
+    { time: '12:00 – 12:45', subject: 'Lunch Break', room: 'Cafeteria', type: 'Break' },
+  ],
+  5: [   // Friday
+    { time: '09:00 – 09:50', subject: 'Computer Networks', code: 'CN301', room: 'B-103', type: 'Lecture' },
+    { time: '10:00 – 10:50', subject: 'Operating Sys', code: 'CS301', room: 'A-105', type: 'Lecture' },
+    { time: '11:00 – 12:30', subject: 'OS Lab', code: 'CS301', room: 'Lab-4', type: 'Lab' },
+  ],
+  6: [], // Saturday
+};
 
 /* ── Subjects data ── */
 const SUBJECTS_DATA = [
@@ -103,10 +144,13 @@ const generateStudents = (assignId, total, submitted) => {
 };
 
 /* ── Attendance data ── */
+const _current = new Date();
+const _dStr = `${_current.getDate()}${['st','nd','rd'][((_current.getDate()%10)-1)]||'th'} ${MONTH_SHORT[_current.getMonth()]} ${_current.getFullYear()}`;
+
 const OVERVIEW_DATA_FILTERS = {
-  Weekly: { totalWorking: 5, present: 4, absent: 1, onLeave: 0, lastUpdated: '4th Nov 2025' },
-  Monthly: { totalWorking: 22, present: 19, absent: 2, onLeave: 1, lastUpdated: '4th Nov 2025' },
-  Yearly: { totalWorking: 220, present: 205, absent: 5, onLeave: 10, lastUpdated: '4th Nov 2025' }
+  Weekly: { totalWorking: 5, present: 4, absent: 1, onLeave: 0, lastUpdated: _dStr },
+  Monthly: { totalWorking: 22, present: 19, absent: 2, onLeave: 1, lastUpdated: _dStr },
+  Yearly: { totalWorking: 220, present: 205, absent: 5, onLeave: 10, lastUpdated: _dStr }
 };
 
 const LEAVE_BREAKDOWN = {
@@ -186,9 +230,7 @@ const BIOMETRIC_LOGS = {
   ]
 };
 
-/* ── Month names helper ── */
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 
 /* ── Parse a date string like "12 Apr 2026" into a Date ── */
 const parseNoticeDate = (str) => {
@@ -346,6 +388,17 @@ export const ALL_STUDENTS = {
 
 export const DEPARTMENTS = Object.keys(ALL_STUDENTS);
 export const SEMESTERS = ['1st','2nd','3rd','4th','5th','6th','7th','8th'];
+
+/* ── Live date formatters ── */
+const WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const formatHeaderDate = () => {
+  const n = new Date();
+  let hours = n.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  const mins = n.getMinutes().toString().padStart(2, '0');
+  return `${WEEKDAYS[n.getDay()]}, ${n.getDate()} ${MONTH_NAMES[n.getMonth()]} • ${hours}:${mins} ${ampm}`;
+};
 export const SECTIONS = ['1','2','3'];
 
 /* Current date reference */
@@ -354,8 +407,50 @@ const NOW = new Date();
 export default function Dashboard() {
   const location = useLocation();
   const incoming = location.state || {};
-  const [tab, setTab] = useState(incoming.tab || 'dashboard');
   const navigate = useNavigate();
+
+  /* ── Tab & Loading State ── */
+  const [tab, setTab] = useState(incoming.tab || 'dashboard');
+  const [tabLoading, setTabLoading] = useState(false);
+  
+  const handleTabSwitch = (newTab) => {
+    if (newTab === tab) return;
+    setTabLoading(true);
+    setTab(newTab);
+    setTimeout(() => setTabLoading(false), 400);
+  };
+
+  /* ── Live Clock State ── */
+  const [liveDate, setLiveDate] = useState(formatHeaderDate);
+  useEffect(() => {
+    const timer = setInterval(() => setLiveDate(formatHeaderDate()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  /* ── Live Schedule Data ── */
+  const liveInstance = new Date();
+  const todaySchedule = WEEKLY_SCHEDULE[liveInstance.getDay()] || [];
+  const currentTimeMinutes = liveInstance.getHours() * 60 + liveInstance.getMinutes();
+  const getSlotStatus = (timeStr) => {
+    const match = timeStr.match(/(\d{2}):(\d{2})\s*[–-]\s*(\d{2}):(\d{2})/);
+    if (!match) return 'upcoming';
+    const start = parseInt(match[1]) * 60 + parseInt(match[2]);
+    const end = parseInt(match[3]) * 60 + parseInt(match[4]);
+    if (currentTimeMinutes >= start && currentTimeMinutes <= end) return 'ongoing';
+    if (currentTimeMinutes > end) return 'completed';
+    return 'upcoming';
+  };
+
+  /* ── Interactive Tasks ── */
+  const [upcomingTasks, setUpcomingTasks] = useState([
+    { id: 1, title: 'Upload Algorithm Grades', date: `Due: Tomorrow, 5:00 PM`, info: 'Finalize and upload mid-sem marks for 3rd Year, Sec 1.', completed: false },
+    { id: 2, title: 'Review DBMS Assignments', date: `Due: 10 Nov, ${new Date().getFullYear()}`, info: 'Check remaining 15 assignments for 3rd Year, Sec 1.', completed: false },
+    { id: 3, title: 'Create Java Lab Test', date: `Due: 12 Nov, ${new Date().getFullYear()}`, info: 'Prepare 3 coding questions for the upcoming lab test.', completed: false },
+  ]);
+
+  const toggleTask = (id) => {
+    setUpcomingTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
 
   /* ── Calendar state ── */
   const [calMonth, setCalMonth] = useState(NOW.getMonth());
@@ -737,7 +832,8 @@ export default function Dashboard() {
             return (
               <tr key={wi}>
                 {wk.map((day,di) => {
-                  const isToday = day === NOW.getDate() && calMonth === NOW.getMonth() && calYear === NOW.getFullYear();
+                  const live = new Date();
+                  const isToday = day === live.getDate() && calMonth === live.getMonth() && calYear === live.getFullYear();
                   const dateStr = day ? `${day} ${MONTH_SHORT[calMonth]} ${calYear}` : null;
                   const isSelected = selectedDate && dateStr === selectedDate;
                   const hasNotice = tab === 'notice' && day && notices.some(n => n.date === dateStr);
@@ -811,7 +907,7 @@ export default function Dashboard() {
               <button
                 key={n.id}
                 className={'d-nav-btn' + (tab === n.id ? ' active' : '')}
-                onClick={() => setTab(n.id)}
+                onClick={() => handleTabSwitch(n.id)}
               >
                 <span className="d-nav-ico">{n.icon}</span>
                 {n.label}
@@ -1655,18 +1751,49 @@ export default function Dashboard() {
               <>
                 <div className="d-schedule">
                   <h2>Daily Schedule</h2>
+                  <p className="d-schedule-date">{liveDate}</p>
+                  {todaySchedule.length > 0 ? (
+                    <div className="d-sched-slider-wrap">
+                      <button className="d-sched-arrow d-sched-arrow-l" onClick={() => { const el = document.querySelector('.d-sched-track'); if(el) el.scrollBy({left:-220,behavior:'smooth'}); }}>‹</button>
+                      <div className="d-sched-track">
+                        {todaySchedule.map((slot, i) => {
+                          const status = getSlotStatus(slot.time);
+                          return (
+                            <div key={i} className={`d-sched-card d-sched-card-${status} ${slot.type === 'Break' ? 'd-sched-card-break' : ''}`}>
+                              <span className="d-sched-card-time">{slot.time}</span>
+                              <span className="d-sched-card-subj">{slot.subject}</span>
+                              {slot.code && <span className="d-sched-card-code">{slot.code}</span>}
+                              <span className="d-sched-card-room">📍 {slot.room}</span>
+                              <span className={`d-sched-card-type d-sched-type-${slot.type.toLowerCase()}`}>{slot.type}</span>
+                              {status === 'ongoing' && <span className="d-sched-now">NOW</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <button className="d-sched-arrow d-sched-arrow-r" onClick={() => { const el = document.querySelector('.d-sched-track'); if(el) el.scrollBy({left:220,behavior:'smooth'}); }}>›</button>
+                    </div>
+                  ) : (
+                    <p className="d-sched-off">🎉 No classes today!</p>
+                  )}
                 </div>
+
+                {/* ── UPCOMING TASKS ── */}
                 <div className="d-tasks">
                   <div className="d-sec-head">
                     <h3>Upcoming Tasks</h3>
                     <span className="d-link">View All</span>
                   </div>
                   <div className="d-tasks-grid">
-                    {TASKS.map((t, i) => (
-                      <div key={i} className="d-task-card">
-                        <h4>{t.title}</h4>
-                        <p className="d-task-date">{t.date}</p>
-                        <p className="d-task-info">{t.info}</p>
+                    {upcomingTasks.map(t => (
+                      <div key={t.id} className={`d-task-card ${t.completed ? 'd-task-card-done' : ''}`} onClick={() => toggleTask(t.id)}>
+                        <div className="d-task-check">
+                          {t.completed ? <div className="d-task-check-inner">✓</div> : <div className="d-task-check-empty"></div>}
+                        </div>
+                        <div className="d-task-content">
+                          <h4 className={t.completed ? 'd-task-done-title' : ''}>{t.title}</h4>
+                          <p className={`d-task-date ${t.completed ? 'd-task-date-done' : ''}`}>{t.date}</p>
+                          <p className="d-task-info">{t.info}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
