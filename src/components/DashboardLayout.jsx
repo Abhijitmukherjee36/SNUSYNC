@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiGrid, FiUsers, FiFileText, FiBook, FiCheckSquare, FiBell, FiEdit3 } from 'react-icons/fi';
 import snuLogo from '../assets/snu-logo.png';
 import { formatHeaderDate } from '../data/dashboardData';
+import ProfileModule from './ProfileModule';
 import '../pages/Dashboard.css';
 
 const NAV = [
@@ -49,8 +50,11 @@ export default function DashboardLayout({ children, activeTab, fullWidth = false
             </div>
           </div>
           <div className="d-top-right">
-            <h2>Abhijit Mukherjee</h2>
-            <span>Teacher</span>
+            <div className="d-top-right-info">
+              <h2>Abhijit Mukherjee</h2>
+              <span>Teacher</span>
+            </div>
+            <ProfileModule name="Abhijit Mukherjee" role="Teacher" />
           </div>
         </div>
 
