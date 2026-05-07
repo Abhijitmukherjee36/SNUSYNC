@@ -10,6 +10,7 @@ import SubjectsPage        from './pages/dashboard/SubjectsPage';
 import AttendanceDashboard from './pages/dashboard/AttendanceDashboard';
 import NoticePage          from './pages/dashboard/NoticePage';
 import ExamPage            from './pages/dashboard/ExamPage';
+import ChroniclesPage      from './pages/dashboard/ChroniclesPage';
 
 import './App.css';
 
@@ -29,6 +30,7 @@ function App() {
         <Route path="/dashboard/attendance"  element={<AttendanceDashboard />} />
         <Route path="/dashboard/notice"      element={<NoticePage />} />
         <Route path="/dashboard/exam"        element={<ExamPage />} />
+        <Route path="/dashboard/chronicles" element={<ChroniclesPage />} />
 
         {/* Full attendance details page */}
         <Route path="/attendance" element={<AttendancePage />} />

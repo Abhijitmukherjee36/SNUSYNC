@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiGrid, FiUsers, FiFileText, FiBook, FiCheckSquare, FiBell, FiEdit3 } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiFileText, FiBook, FiCheckSquare, FiBell, FiEdit3, FiBookOpen } from 'react-icons/fi';
 import snuLogo from '../assets/snu-logo.png';
 import { formatHeaderDate } from '../data/dashboardData';
 import ProfileModule from './ProfileModule';
@@ -14,6 +14,7 @@ const NAV = [
   { id: 'attendance',  label: 'Attendance',   path: '/dashboard/attendance',  icon: <FiCheckSquare /> },
   { id: 'notice',      label: 'Notice',       path: '/dashboard/notice',      icon: <FiBell /> },
   { id: 'exam',        label: 'Exam',         path: '/dashboard/exam',        icon: <FiEdit3 /> },
+  { id: 'chronicles',  label: 'Chronicles',   path: '/dashboard/chronicles',  icon: <FiBookOpen /> },
 ];
 
 /**
